@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm view *)",
+      "Bash(npm install *)",
+      "Bash(grep -nB1 \"setText\\(\\\\b\\\\|^\\\\s*setText\\\\b\" /Users/wojtek/Development/playground/imgly-gen-skill/node_modules/@cesdk/node/index.d.ts)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(awk -F= '{ if \\($1 == \"CESDK_LICENSE\"\\) printf \"CESDK_LICENSE: length=%d, first2=%s, last2=%s, has_quotes=%s, has_spaces=%s\\\\n\", length\\($2\\), substr\\($2,1,2\\), substr\\($2,length\\($2\\)-1,2\\), \\($2 ~ /[\"'\\\\'']/ ? \"yes\" : \"no\"\\), \\($2 ~ / /  ? \"yes\" : \"no\"\\) }' .env)",
+      "Bash(xxd .env)",
+      "Bash(node -e ' *)",
+      "Bash(file output/smoketest-render_*.png)",
+      "WebSearch",
+      "WebFetch(domain:docs.openclaw.ai)"
+    ]
+  }
+}

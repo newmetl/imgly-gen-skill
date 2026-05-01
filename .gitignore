@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+
+# CE.SDK lokaler Asset-Cache
+cesdk-assets/
+
+# Runtime-Daten
+templates/
+output/
+.cache/
+
+# Editor-App
+editor-app/node_modules/
+editor-app/dist/
+editor-app/.vite/
