@@ -1,5 +1,3 @@
-export type TemplateStatus = 'draft' | 'ready';
-
 export type SocialPlatform =
   | 'facebook'
   | 'instagram_square'
@@ -21,7 +19,6 @@ export interface TemplateMetadata {
   dimensions: TemplateDimensions;
   variables: string[];
   placeholders: string[];
-  status: TemplateStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -30,6 +27,7 @@ export interface RenderJob {
   templateId: string;
   variables: Record<string, string>;
   imagePath: string;
+  outputPath?: string;
 }
 
 export interface RenderResult {

@@ -7,7 +7,6 @@ import { renderPost } from '../src/engine/renderer.js';
 import {
   getTemplatePaths,
   templateExists,
-  updateMetadata,
 } from '../src/storage/templateManager.js';
 
 const TEMPLATE_ID = 'smoketest-render';
@@ -54,9 +53,6 @@ async function main(): Promise<void> {
     platform: 'instagram_square',
     variables: ['headline', 'postText'],
   });
-
-  // Template als ready markieren – im echten Flow macht das der Editor + confirm_template.
-  updateMetadata(TEMPLATE_ID, { status: 'ready' });
 
   process.stderr.write('[smoketest-render] Rendere ...\n');
   const result = await renderPost({

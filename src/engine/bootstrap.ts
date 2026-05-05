@@ -130,7 +130,6 @@ export async function createBaseTemplate(config: BootstrapConfig): Promise<void>
       dimensions: { width, height },
       variables: [...config.variables],
       placeholders: [placeholderName],
-      status: 'draft',
       createdAt: now,
       updatedAt: now,
     });

@@ -1,159 +1,179 @@
 # cesdk-social-skill
 
-MCP-Skill für KI-gestützte Social-Media-Bildgenerierung mit [CE.SDK](https://img.ly/products/creative-sdk) von img.ly.
+CLI + Claude-Code-Skill für die Generierung von Social-Media-Bildern mit
+[CE.SDK](https://img.ly/products/creative-sdk) von img.ly.
 
-Ein KI-Agent (z. B. Claude Code, Cursor) nutzt den Skill, um eigenständig Social-Media-Posts in einem
-konsistenten visuellen Stil zu produzieren. Der Stil wird vom Nutzer einmalig in einem lokalen
-Browser-Editor festgelegt; der Agent befüllt das Template anschließend mit Text und Bild und
-exportiert PNGs.
+Der Workflow: Du gestaltest ein Template einmalig im lokalen Browser-Editor und befüllst es
+anschließend immer wieder mit unterschiedlichen Texten und Bildern — entweder von Hand per CLI
+oder über Claude Code, der die CLI für dich bedient.
 
-## Architektur in drei Sätzen
+## Wie nutze ich das?
 
-Der Skill ist ein MCP-Server (stdio), der dem Agenten fünf Tools zur Verfügung stellt:
-`setup_template`, `confirm_template`, `list_templates`, `render_post`, `delete_template`. Templates
-werden mit der headless Engine `@cesdk/node` als Basis-Layout angelegt, vom Nutzer in einer lokalen
-Vite/React-App mit `@cesdk/cesdk-js` visuell finalisiert und beim Rendern wieder vom Server geladen.
-Alle Daten (Templates, Outputs) liegen lokal auf der Festplatte; einzige Netzwerk-Abhängigkeit ist
-die einmalige Lizenz-Validierung gegen `api.img.ly` beim Start.
+Zwei Wege — du wählst:
+
+1. **[Manuell per CLI](#1-manuelle-nutzung-per-cli)** — kein KI-Tool nötig.
+2. **[Mit Claude Code als Skill](#2-nutzung-mit-claude-code)** — Claude bedient die CLI für dich.
+
+In beiden Fällen ist das Setup identisch.
 
 ## Voraussetzungen
 
 - Node.js >= 18 (getestet mit 24)
-- Ein gültiger CE.SDK Lizenzschlüssel — kostenlosen Trial-Key gibt es unter
+- Ein gültiger CE.SDK Lizenzschlüssel — kostenlosen Trial-Key gibt's unter
   [img.ly/dashboard](https://img.ly/dashboard).
 
-## Installation
+## Setup (einmalig)
 
 ```bash
 git clone <repo-url> cesdk-social-skill
 cd cesdk-social-skill
-npm run install:all   # installiert Root + editor-app
-```
-
-`.env` aus Vorlage erstellen und Lizenz eintragen:
-
-```bash
+npm run install:all
 cp .env.example .env
 cp editor-app/.env.example editor-app/.env
-# anschließend in beiden Dateien CESDK_LICENSE / VITE_CESDK_LICENSE setzen
+# In .env:            CESDK_LICENSE=…
+# In editor-app/.env: VITE_CESDK_LICENSE=…
+npm run build
 ```
 
-Build erzeugen:
+Nach `npm run build` existieren `dist/cli/index.js` (CLI) und `editor-app/dist/index.html`
+(Browser-Editor).
+
+Optional: Damit der Befehl global als `cesdk-social` verfügbar ist, einmal
+`npm link` ausführen. Sonst überall durch `npx cesdk-social` ersetzen.
+
+---
+
+## 1. Manuelle Nutzung per CLI
+
+### Template anlegen
 
 ```bash
-npm run build         # baut Server (dist/) und Editor-App (editor-app/dist/)
+cesdk-social init "Herbst-Kampagne" \
+  --platform instagram_square \
+  --variables headline,postText \
+  --description "Saisonale Aktion für Webshop"
 ```
 
-## MCP-Server in einem Agenten registrieren
+Plattformen: `facebook`, `instagram_square`, `instagram_story`,
+`instagram_landscape`, `linkedin`, `twitter`.
 
-Beispiel-Konfiguration (`claude_desktop_config.json` oder `~/.cursor/mcp.json`):
+Die erste Variable wird als Headline (bold) gerendert, alle weiteren als Body-Text.
 
-```json
-{
-  "mcpServers": {
-    "cesdk-social-skill": {
-      "command": "node",
-      "args": ["dist/index.js"],
-      "cwd": "/absoluter/pfad/zu/cesdk-social-skill",
-      "env": {
-        "CESDK_LICENSE": "your_license_key_here"
-      }
-    }
-  }
-}
+### Editor starten und Template gestalten
+
+```bash
+cesdk-social editor
 ```
 
-Nach dem Start sollte der Agent die fünf Tools auflisten können.
-
-## Tools
-
-### `setup_template`
-
-Legt ein neues Template an und startet den Editor-Server.
-
-| Parameter | Typ | Beschreibung |
-|---|---|---|
-| `name` | string | Anzeigename, z. B. "Herbst-Kampagne". Wird zur Template-ID slugifiziert. |
-| `description` | string | Kurzbeschreibung. |
-| `platform` | enum | `facebook` \| `instagram_square` \| `instagram_story` \| `instagram_landscape` \| `linkedin` \| `twitter`. Bestimmt die Maße. |
-| `variables` | string[] | Liste der Text-Variablen. Erste = Headline (bold), weitere = Body. |
-
-Antwort enthält die `templateId` und `editorUrl`. Der Agent fordert den Nutzer auf, die URL im
-Browser zu öffnen, das Design zu finalisieren und im Editor zu speichern.
-
-### `confirm_template`
-
-Validiert das gespeicherte Template, liest tatsächliche Variablen und Platzhalter aus und setzt den
-Status auf `ready`. Erst danach ist `render_post` möglich.
-
-### `list_templates`
-
-Liefert alle bekannten Templates inklusive Status, Plattform und Variablen.
-
-### `render_post`
-
-Rendert einen Post: lädt das Template, befüllt Variablen, setzt das Bild in den Platzhalter,
-exportiert als PNG. Liefert den absoluten Output-Pfad.
-
-| Parameter | Typ | Beschreibung |
-|---|---|---|
-| `templateId` | string | ID eines `ready` Templates. |
-| `variables` | Record<string,string> | Muss alle Variablen aus dem Template abdecken. |
-| `imagePath` | string | Absoluter Pfad zur lokalen Bilddatei (PNG/JPG). |
-
-### `delete_template`
-
-Löscht ein Template inklusive Archiv und Metadaten. Erfordert `confirm: true`. Bereits gerenderte
-Output-Bilder bleiben erhalten.
-
-## Typischer Workflow
+Der Editor läuft im Vordergrund (Ctrl+C beendet ihn). Im Browser öffnen:
 
 ```
-Agent ──> setup_template(name, description, platform, variables)
-         <── { templateId, editorUrl }
-
-Nutzer im Browser: Design fertigstellen, "Template speichern" klicken
-
-Agent ──> confirm_template(templateId)
-         <── { status: "ready", variables: [...] }
-
-Agent ──> render_post(templateId, variables, imagePath)
-         <── { outputPath: "/abs/.../id_2026-01-01T12-00-00Z.png" }
+http://localhost:3456?template=herbst-kampagne
 ```
+
+(Die exakte URL liefert auch `init` aus.) Design fertigstellen, oben rechts auf
+**Template speichern** klicken, fertig.
+
+> Beim ersten Aufruf lädt CE.SDK Assets vom CDN — 5–10 s Wartezeit ist normal.
+
+### Posts rendern
+
+In einem zweiten Terminal:
+
+```bash
+cesdk-social render herbst-kampagne \
+  --image ~/Bilder/herbst.jpg \
+  --vars '{"headline":"Apfelernte","postText":"Frisch vom Hof — jetzt im Shop."}'
+```
+
+stdout enthält den absoluten Pfad zur PNG, z. B.
+`output/herbst-kampagne_2026-05-04T12-00-00Z.png`.
+
+Mit `--output <pfad>` kann der Output-Pfad explizit gesetzt werden. Für umfangreiche oder
+komplexe Variablen-Sets gibt's `--vars-file vars.json`.
+
+### Templates verwalten
+
+```bash
+cesdk-social list                  # Tabelle
+cesdk-social list --json           # für Skripte
+cesdk-social delete <id> --force   # Template entfernen (Output-PNGs bleiben)
+```
+
+---
+
+## 2. Nutzung mit Claude Code
+
+Das Repo enthält einen Skill unter [.claude/skills/cesdk-social/SKILL.md](.claude/skills/cesdk-social/SKILL.md).
+Sobald du das Repo in Claude Code öffnest, lädt Claude den Skill automatisch.
+
+Ablauf einer Session:
+
+1. **„Lege ein neues Instagram-Quadrat-Template ‚Herbst-Kampagne' mit Variablen headline und
+   postText an."**
+   → Claude prüft das Setup, ggf. baut er das Projekt und/oder bittet dich, deinen Lizenzschlüssel
+   in `.env` einzutragen.
+   → Claude ruft `cesdk-social init` auf.
+
+2. Claude startet den Editor im Hintergrund und gibt dir die URL
+   `http://localhost:3456?template=herbst-kampagne`. Du gestaltest das Template im Browser und
+   speicherst es.
+
+3. **„Generiere 3 Posts: Apfelernte, Kürbissuppe, warmer Kakao. Bild: ~/Bilder/herbst.jpg."**
+   → Claude formuliert pro Post Headline + Body und ruft `cesdk-social render` dreimal auf.
+   → Du bekommst die 3 Output-Pfade.
+
+### Sicherheit beim Lizenzschlüssel
+
+Der Skill ist so konfiguriert, dass Claude `.env`-Dateien **nicht liest und nicht ausgibt**. Der
+Lizenzschlüssel verlässt deine Maschine nicht.
+
+---
+
+## CLI-Referenz
+
+```
+cesdk-social init <name> --platform <p> --variables <a,b,c> [--description <d>]
+cesdk-social editor [--port <port>]
+cesdk-social render <id> --image <pfad> (--vars <json> | --vars-file <pfad>) [--output <pfad>]
+cesdk-social list [--json]
+cesdk-social delete <id> --force
+```
+
+Alle Befehle lesen `CESDK_LICENSE` aus `.env` (oder der Umgebung). Der Editor zusätzlich
+`VITE_CESDK_LICENSE` aus `editor-app/.env`.
 
 ## Smoketests
 
 ```bash
-# Erzeugt ein Basis-Template per @cesdk/node und prüft das ZIP
-npm run smoketest:bootstrap
-
-# Erzeugt Template, lädt ein Test-Bild von picsum.photos und rendert ein PNG
-npm run smoketest:render
+npm run smoketest:bootstrap   # erzeugt ein Test-Template per @cesdk/node
+npm run smoketest:render      # rendert ein Test-Bild → output/*.png
 ```
 
-Beide brauchen `CESDK_LICENSE` in `.env`. Output landet in `templates/` und `output/`.
+Beide brauchen `CESDK_LICENSE` in `.env`. Die Skripte umgehen den Editor-Schritt und decken die
+kritischen Engine-Pfade ab.
 
 ## Verzeichnisstruktur
 
 ```
 cesdk-social-skill/
 ├── src/
-│   ├── index.ts                  # MCP-Entrypoint (stdio)
-│   ├── mcp/
-│   │   ├── server.ts             # Tool-Registry
-│   │   └── tools/                # Ein File pro Tool
+│   ├── cli/                  # CLI-Entrypoint + Befehle
+│   │   ├── index.ts
+│   │   └── commands/
 │   ├── engine/
-│   │   ├── bootstrap.ts          # Basis-Template per @cesdk/node erzeugen
-│   │   └── renderer.ts           # Template laden → fillen → PNG export
+│   │   ├── bootstrap.ts      # Basis-Template per @cesdk/node erzeugen
+│   │   └── renderer.ts       # Template laden → fillen → PNG export
 │   ├── editor/
-│   │   └── server.ts             # Lokaler Express-Server für Editor-UI + ZIP-API
+│   │   └── server.ts         # Lokaler Express-Server für Editor-UI + ZIP-API
 │   └── storage/
 │       ├── types.ts
 │       └── templateManager.ts
-├── editor-app/                   # Vite + React + @cesdk/cesdk-js
-├── scripts/                      # Smoketests
-├── templates/                    # Runtime: gespeicherte Templates
-└── output/                       # Runtime: gerenderte PNGs
+├── editor-app/               # Vite + React + @cesdk/cesdk-js
+├── scripts/                  # Smoketests
+├── .claude/skills/cesdk-social/SKILL.md
+├── templates/                # Runtime: gespeicherte Templates
+└── output/                   # Runtime: gerenderte PNGs
 ```
 
 ## Konfiguration (Umgebungsvariablen)
@@ -164,29 +184,24 @@ cesdk-social-skill/
 | `VITE_CESDK_LICENSE` | ja (Editor) | – | `editor-app/.env` |
 | `TEMPLATES_DIR` | nein | `./templates` | Root `.env` |
 | `OUTPUT_DIR` | nein | `./output` | Root `.env` |
-| `EDITOR_PORT` | nein | `3456` | Root `.env` |
+| `EDITOR_PORT` | nein | `3456` | Root `.env` (oder per `--port`) |
 
 ## Entwicklung
 
 ```bash
-# MCP-Server im Watch-Modus (tsx)
-npm run dev
-
-# Editor-App im Vite-Dev-Modus (separat, mit Proxy auf Port 3456)
-npm run dev:editor
-
-# Type-Check ohne Build
-npm run typecheck
+npm run dev                 # CLI im Watch-Modus (tsx)
+npm run dev:editor          # Editor-App im Vite-Dev-Modus (Proxy auf 3456)
+npm run typecheck           # Type-Check ohne Build
 ```
 
 ## Bekannte Einschränkungen
 
-- **Lizenz-Validierung beim Start.** `CreativeEngine.init()` validiert den Lizenzschlüssel einmalig
-  gegen `api.img.ly`. Das erfordert beim ersten Aufruf eine Internetverbindung. Alle Folge-Operationen
-  laufen lokal.
-- **Editor-App muss vor `setup_template` gebaut sein** (`npm run build:editor`). Falls nicht, liefert
-  der Editor-Server eine 503 mit Hinweis statt der App aus.
-- **Kein Multi-Page-Support.** Templates haben aktuell genau eine Page (= ein Output-PNG pro Render).
-- **Variablen-Erkennung beim `confirm_template`** basiert auf den im Editor genutzten `{{name}}`-Patterns.
-  Wenn der Nutzer Variablen-Texte komplett ersetzt, kann die Liste leer ausfallen — fallback ist die
-  ursprüngliche Variablen-Liste aus dem Bootstrap.
+- **Lizenz-Validierung beim Start.** `CreativeEngine.init()` validiert den Lizenzschlüssel
+  einmalig gegen `api.img.ly`. Der erste Aufruf braucht Internet; alles weitere läuft lokal.
+- **Editor-App muss vor `editor` gebaut sein** (`npm run build:editor`). Sonst liefert der
+  Editor-Server eine 503 mit Hinweis.
+- **Kein Multi-Page-Support.** Templates haben aktuell genau eine Page (= ein Output-PNG pro
+  Render).
+- **Variablen werden nicht erneut aus dem Editor ausgelesen.** Die Variablen-Liste, die du beim
+  `init` angibst, ist beim Rendern bindend. Wenn du im Editor `{{name}}`-Patterns komplett
+  entfernst, kann das Rendering Variablen-Werte ignorieren.

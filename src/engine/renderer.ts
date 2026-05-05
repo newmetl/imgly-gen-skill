@@ -24,13 +24,6 @@ function requireLicense(): string {
 export async function renderPost(job: RenderJob): Promise<RenderResult> {
   const meta = loadMetadata(job.templateId);
 
-  if (meta.status !== 'ready') {
-    throw new Error(
-      `Template '${job.templateId}' hat Status '${meta.status}'. ` +
-        `Bitte zuerst im Editor speichern und 'confirm_template' aufrufen.`,
-    );
-  }
-
   const missing = meta.variables.filter((v) => !(v in job.variables));
   if (missing.length > 0) {
     throw new Error(
@@ -79,7 +72,10 @@ export async function renderPost(job: RenderJob): Promise<RenderResult> {
     });
 
     const buffer = Buffer.from(await blob.arrayBuffer());
-    const outputPath = getOutputPath(job.templateId);
+    const outputPath = job.outputPath
+      ? path.resolve(job.outputPath)
+      : getOutputPath(job.templateId);
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
     fs.writeFileSync(outputPath, buffer);
 
     return {

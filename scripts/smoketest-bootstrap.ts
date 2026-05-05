@@ -39,7 +39,6 @@ async function main(): Promise<void> {
   );
   process.stderr.write(`  Variablen:     ${metadata.variables.join(', ')}\n`);
   process.stderr.write(`  Platzhalter:   ${metadata.placeholders.join(', ')}\n`);
-  process.stderr.write(`  Status:        ${metadata.status}\n`);
   process.stderr.write(`  Archiv-Größe:  ${stats.size} bytes\n`);
   process.stderr.write(`  Archiv-Pfad:   ${zip}\n`);
   process.stderr.write(`  Archiv-URL:    ${fileUrl}\n`);

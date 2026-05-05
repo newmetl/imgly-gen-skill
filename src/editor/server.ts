@@ -10,7 +10,7 @@ import {
   updateMetadata,
 } from '../storage/templateManager.js';
 
-const EDITOR_PORT = parseInt(process.env.EDITOR_PORT ?? '3456', 10);
+const DEFAULT_EDITOR_PORT = 3456;
 const EDITOR_DIST_DIR = path.resolve('./editor-app/dist');
 const HEALTH_PATH = '/__health';
 const SHUTDOWN_TIMEOUT_MS = 5000;
@@ -114,14 +114,20 @@ async function waitForHealth(url: string, timeoutMs = 10_000): Promise<void> {
   throw new Error(`Editor-Server wurde nicht innerhalb von ${timeoutMs}ms bereit.`);
 }
 
-export async function startEditorServer(): Promise<string> {
+export async function startEditorServer(port?: number): Promise<string> {
   if (serverUrl) return serverUrl;
 
+  const actualPort =
+    port ?? parseInt(process.env.EDITOR_PORT ?? String(DEFAULT_EDITOR_PORT), 10);
+  if (!Number.isFinite(actualPort) || actualPort <= 0) {
+    throw new Error(`Ungültiger Editor-Port: ${actualPort}`);
+  }
+
   const app = buildApp();
-  const url = `http://localhost:${EDITOR_PORT}`;
+  const url = `http://localhost:${actualPort}`;
 
   await new Promise<void>((resolve, reject) => {
-    const server = app.listen(EDITOR_PORT);
+    const server = app.listen(actualPort);
     server.once('listening', () => {
       serverInstance = server;
       resolve();
