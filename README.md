@@ -116,6 +116,29 @@ stdout enthält den absoluten Pfad zur PNG, z. B.
 Mit `--output <pfad>` kann der Output-Pfad explizit gesetzt werden. Für umfangreiche oder
 komplexe Variablen-Sets gibt's `--vars-file vars.json`.
 
+### Hintergrundbilder per KI generieren (optional)
+
+Wenn kein passendes Foto zur Hand ist, kann `generate` ein Bild über
+[pollinations.ai](https://pollinations.ai) erzeugen — kein Account, kein API-Key. Die Qualität ist
+für Prototypen und Schnellschüsse gedacht.
+
+```bash
+cesdk-social generate "herbstliche Apfelernte, Korb voller roter Aepfel" \
+  --width 1080 --height 1080 --seed 42
+```
+
+Auch hier: stdout enthält genau den absoluten PNG-Pfad. Bequem in `render` weiterreichen:
+
+```bash
+IMG=$(cesdk-social generate "warmer Kakao mit Zimt, Herbststimmung" --width 1080 --height 1080)
+cesdk-social render herbst-kampagne --image "$IMG" \
+  --vars '{"headline":"Kakao-Zeit","postText":"Aufwärmen mit einer Tasse Glück."}'
+```
+
+Generierte Bilder landen standardmäßig unter `output/generated/` und sind so wiederverwendbar.
+Optionen: `--width`, `--height` (Default 1024), `--seed <n>` (reproduzierbar), `--model <name>`
+(Pollinations-Modellname), `--output <pfad>` (Pfad überschreiben).
+
 ### Templates verwalten
 
 ```bash
@@ -160,6 +183,7 @@ Lizenzschlüssel verlässt deine Maschine nicht.
 cesdk-social init <name> --platform <p> --variables <a,b,c> [--description <d>]
 cesdk-social editor [--port <port>]
 cesdk-social render <id> --image <pfad> (--vars <json> | --vars-file <pfad>) [--output <pfad>]
+cesdk-social generate "<prompt>" [--output <pfad>] [--width <n>] [--height <n>] [--seed <n>] [--model <name>]
 cesdk-social list [--json]
 cesdk-social delete <id> --force
 ```

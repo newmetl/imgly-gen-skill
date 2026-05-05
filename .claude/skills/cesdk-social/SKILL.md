@@ -93,6 +93,24 @@ Der absolute Pfad zur erzeugten PNG wird auf stdout ausgegeben (eine Zeile, sons
 
 Für mehrere Posts: `render` einfach mehrfach aufrufen — jeder Aufruf erzeugt eine eigene PNG mit Zeitstempel.
 
+### Hintergrundbild per Pollinations.ai generieren
+
+Wenn der Nutzer kein Foto liefert oder explizit ein KI-generiertes Bild will: per `generate` eines erzeugen. Kein API-Key, kein Account.
+
+```bash
+node dist/cli/index.js generate "<prompt>" \
+  [--width 1024] [--height 1024] [--seed <n>] [--model <name>] [--output <pfad>]
+```
+
+Standard 1024×1024, Output unter `output/generated/<slug>_<timestamp>.png`. stdout enthält nur den absoluten Pfad — direkt in `render` weiterleiten:
+
+```bash
+IMG=$(node dist/cli/index.js generate "warmer kakao zimt herbststimmung" --width 1080 --height 1080)
+node dist/cli/index.js render <id> --image "$IMG" --vars '{"headline":"…","postText":"…"}'
+```
+
+Pro Post-Serie mit ähnlichem Look: einmal `--seed <n>` setzen, damit derselbe Prompt reproduzierbare Bilder liefert. Pollinations ist ein externer Dienst — Internet erforderlich, Antwortzeit 5–15 s pro Bild. Qualität ist Prototyp-Niveau, nicht Produktionsqualität; bei „mach mir ein hochwertiges Marketing-Bild" den Nutzer warnen, dass er besser ein eigenes Foto liefert.
+
 ### Editor stoppen
 
 Wenn der Nutzer keine Render-Aufträge mehr hat: den Hintergrundprozess beenden (KillShell).
@@ -132,6 +150,7 @@ node dist/cli/index.js render herbst-kampagne \
 | `Template '…' nicht gefunden` | Falsche ID | `node dist/cli/index.js list` zur Korrektur |
 | Port 3456 belegt | Anderer Prozess hält den Port | Mit `cesdk-social editor --port <anderer>` starten |
 | `Template '…' existiert bereits` (bei `init`) | Slug-Kollision | Anderen Namen wählen oder altes Template via `delete --force` entfernen |
+| `Pollinations.ai antwortete mit HTTP …` (bei `generate`) | Dienst nicht erreichbar oder Prompt-Filter | Nochmal versuchen; bei wiederholtem Fehler dem Nutzer vorschlagen, ein eigenes Bild zu liefern |
 
 ---
 

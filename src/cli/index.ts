@@ -7,6 +7,7 @@ import { runEditor } from './commands/editor.js';
 import { runRender } from './commands/render.js';
 import { runList } from './commands/list.js';
 import { runDelete } from './commands/delete.js';
+import { runGenerate } from './commands/generate.js';
 
 const HELP = `cesdk-social — CE.SDK Social-Media Template-Generator
 
@@ -19,6 +20,9 @@ Befehle:
 
   cesdk-social render <id> --image <pfad> (--vars <json> | --vars-file <pfad>) [--output <pfad>]
       Rendert einen Post als PNG; gibt den Output-Pfad auf stdout aus.
+
+  cesdk-social generate "<prompt>" [--output <pfad>] [--width <n>] [--height <n>] [--seed <n>] [--model <name>]
+      Generiert ein Bild über pollinations.ai; gibt den Output-Pfad auf stdout aus.
 
   cesdk-social list [--json]
       Listet alle Templates.
@@ -34,6 +38,7 @@ Beispiele:
   cesdk-social editor
   cesdk-social render herbst-kampagne --image ~/foto.jpg \\
     --vars '{"headline":"Apfelernte","body":"Frisch vom Hof."}'
+  cesdk-social generate "herbstliche Apfelernte, Korb voller roter Aepfel"
 `;
 
 async function main(): Promise<void> {
@@ -108,6 +113,39 @@ async function main(): Promise<void> {
         vars: values.vars,
         varsFile: values['vars-file'],
         output: values.output,
+      });
+      break;
+    }
+
+    case 'generate': {
+      const { values, positionals } = parseArgs({
+        args: rest,
+        allowPositionals: true,
+        options: {
+          output: { type: 'string' },
+          width: { type: 'string' },
+          height: { type: 'string' },
+          seed: { type: 'string' },
+          model: { type: 'string' },
+        },
+      });
+      const prompt = positionals.join(' ').trim();
+      if (!prompt) throw new Error('Argument <prompt> fehlt.');
+      const parseDim = (raw: string | undefined, name: string): number | undefined => {
+        if (raw === undefined) return undefined;
+        const n = parseInt(raw, 10);
+        if (!Number.isFinite(n) || n <= 0) {
+          throw new Error(`--${name} muss eine positive Zahl sein, nicht '${raw}'.`);
+        }
+        return n;
+      };
+      await runGenerate({
+        prompt,
+        output: values.output,
+        width: parseDim(values.width, 'width'),
+        height: parseDim(values.height, 'height'),
+        seed: parseDim(values.seed, 'seed'),
+        model: values.model,
       });
       break;
     }
