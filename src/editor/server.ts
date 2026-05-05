@@ -79,11 +79,26 @@ function buildApp(): express.Express {
   });
 
   if (fs.existsSync(EDITOR_DIST_DIR)) {
-    app.use(express.static(EDITOR_DIST_DIR, { index: 'index.html' }));
-    // SPA-Fallback: alle nicht-API-Requests auf index.html umlenken
-    app.get(/^\/(?!api\/|__health$).*/, (_req: Request, res: Response) => {
-      res.sendFile(path.join(EDITOR_DIST_DIR, 'index.html'));
-    });
+    const indexPath = path.join(EDITOR_DIST_DIR, 'index.html');
+    const indexHtml = fs.readFileSync(indexPath, 'utf8');
+
+    const sendIndex = (_req: Request, res: Response): void => {
+      const license = process.env.CESDK_LICENSE ?? '';
+      // Lizenz zur Laufzeit ins HTML injizieren (statt zweite .env im editor-app).
+      // JSON.stringify quotet & escaped sicher (verhindert Skript-Injection).
+      const inject = `<script>window.__CESDK_LICENSE__=${JSON.stringify(license)};</script>`;
+      const html = indexHtml.replace('</head>', `${inject}</head>`);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-store');
+      res.send(html);
+    };
+
+    app.get(['/', '/index.html'], sendIndex);
+    // Statische Assets (JS, CSS, Fonts ...) — index NICHT erneut über static
+    // ausliefern, sonst überspringt Express den injizierenden Handler.
+    app.use(express.static(EDITOR_DIST_DIR, { index: false }));
+    // SPA-Fallback: alle nicht-API-Requests auf index.html (mit Inject) umlenken
+    app.get(/^\/(?!api\/|__health$).*/, sendIndex);
   } else {
     app.get('/', (_req: Request, res: Response) => {
       res

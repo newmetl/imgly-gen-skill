@@ -21,12 +21,16 @@ export function CesdkEditor({ templateId }: Props): JSX.Element {
     const container = containerRef.current;
     if (!container) return;
 
-    const license = import.meta.env.VITE_CESDK_LICENSE;
+    // Lizenz wird zur Laufzeit vom Editor-Server in `window.__CESDK_LICENSE__`
+    // injiziert. Fallback auf VITE_CESDK_LICENSE nur für `vite dev` (Editor-App-
+    // Entwicklung), wo der Server-Inject nicht greift.
+    const license =
+      window.__CESDK_LICENSE__ ?? import.meta.env.VITE_CESDK_LICENSE;
     if (!license) {
       setStatus({
         kind: 'error',
         message:
-          'VITE_CESDK_LICENSE ist nicht gesetzt. Bitte in editor-app/.env hinterlegen und Build neu starten.',
+          'CESDK_LICENSE nicht gefunden. Bitte den Lizenz-Wizard ausführen oder in der Root-.env hinterlegen.',
       });
       return;
     }

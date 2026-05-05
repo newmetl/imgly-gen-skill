@@ -1,0 +1,338 @@
+import fs from 'node:fs';
+import http from 'node:http';
+import net from 'node:net';
+import path from 'node:path';
+
+import express, { type Request, type Response } from 'express';
+
+const ENV_PATH = path.resolve('./.env');
+const ENV_EXAMPLE_PATH = path.resolve('./.env.example');
+const PLACEHOLDER_VALUES = new Set(['', 'your_license_key_here']);
+
+export interface LicenseStatus {
+  hasEnvFile: boolean;
+  hasLicense: boolean;
+  value: string | null;
+}
+
+export function readLicenseStatus(): LicenseStatus {
+  if (!fs.existsSync(ENV_PATH)) {
+    return { hasEnvFile: false, hasLicense: false, value: null };
+  }
+  const text = fs.readFileSync(ENV_PATH, 'utf8');
+  const value = parseEnvValue(text, 'CESDK_LICENSE');
+  if (value === null || PLACEHOLDER_VALUES.has(value)) {
+    return { hasEnvFile: true, hasLicense: false, value };
+  }
+  return { hasEnvFile: true, hasLicense: true, value };
+}
+
+function parseEnvValue(text: string, key: string): string | null {
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trimStart();
+    if (line.startsWith('#') || line === '') continue;
+    const eq = line.indexOf('=');
+    if (eq === -1) continue;
+    if (line.slice(0, eq).trim() !== key) continue;
+    let value = line.slice(eq + 1).trim();
+    // Inline-Kommentar abschneiden (nur außerhalb von Quotes)
+    if (
+      (value.startsWith('"') && value.endsWith('"') && value.length >= 2) ||
+      (value.startsWith("'") && value.endsWith("'") && value.length >= 2)
+    ) {
+      return value.slice(1, -1);
+    }
+    const hashAt = value.indexOf(' #');
+    if (hashAt !== -1) value = value.slice(0, hashAt).trim();
+    return value;
+  }
+  return null;
+}
+
+export function ensureEnvFile(): void {
+  if (fs.existsSync(ENV_PATH)) return;
+  if (!fs.existsSync(ENV_EXAMPLE_PATH)) {
+    fs.writeFileSync(ENV_PATH, 'CESDK_LICENSE=\n', 'utf8');
+    return;
+  }
+  fs.copyFileSync(ENV_EXAMPLE_PATH, ENV_PATH);
+}
+
+export function writeLicense(license: string): void {
+  ensureEnvFile();
+  const original = fs.readFileSync(ENV_PATH, 'utf8');
+  const lines = original.split(/\r?\n/);
+  let replaced = false;
+  const next = lines.map((rawLine) => {
+    const trimmed = rawLine.trimStart();
+    if (trimmed.startsWith('#') || trimmed === '') return rawLine;
+    const eq = trimmed.indexOf('=');
+    if (eq === -1) return rawLine;
+    if (trimmed.slice(0, eq).trim() !== 'CESDK_LICENSE') return rawLine;
+    replaced = true;
+    return `CESDK_LICENSE=${license}`;
+  });
+  if (!replaced) next.push(`CESDK_LICENSE=${license}`);
+  fs.writeFileSync(ENV_PATH, next.join('\n'), 'utf8');
+}
+
+async function validateLicense(license: string): Promise<{ ok: true } | { ok: false; reason: string }> {
+  // CE.SDK validiert beim CreativeEngine.init() einmalig gegen api.img.ly.
+  // Wenn der Key ungültig ist, wirft init synchron oder asynchron.
+  const cesdk = await import('@cesdk/node');
+  const CreativeEngine = cesdk.default;
+  let engine: Awaited<ReturnType<typeof CreativeEngine.init>> | null = null;
+  try {
+    engine = await CreativeEngine.init({ license });
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      reason: err instanceof Error ? err.message : String(err),
+    };
+  } finally {
+    engine?.dispose();
+  }
+}
+
+async function findFreePort(start: number, attempts = 20): Promise<number> {
+  for (let i = 0; i < attempts; i++) {
+    const port = start + i;
+    if (await isPortFree(port)) return port;
+  }
+  throw new Error(`Kein freier Port im Bereich ${start}-${start + attempts - 1}.`);
+}
+
+function isPortFree(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const tester = net.createServer();
+    tester.once('error', () => resolve(false));
+    tester.once('listening', () => {
+      tester.close(() => resolve(true));
+    });
+    tester.listen(port, '127.0.0.1');
+  });
+}
+
+const WIZARD_HTML = `<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CE.SDK Lizenz einrichten</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #1a1a1a;
+      color: #e8e8e8;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      padding: 24px;
+    }
+    .card {
+      max-width: 520px;
+      width: 100%;
+      background: #222;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 32px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    }
+    h1 { margin: 0 0 12px; font-size: 22px; }
+    p { line-height: 1.55; color: #c9c9c9; }
+    a { color: #93c5fd; }
+    label { display: block; margin-top: 18px; font-size: 13px; color: #b8b8b8; }
+    input[type="password"], input[type="text"] {
+      width: 100%;
+      margin-top: 6px;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: #111;
+      color: #e8e8e8;
+      border: 1px solid #444;
+      border-radius: 6px;
+    }
+    input:focus { outline: 2px solid #3b82f6; outline-offset: -1px; }
+    .row { display: flex; gap: 10px; margin-top: 18px; align-items: center; }
+    button {
+      padding: 11px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      background: #3b82f6;
+      color: white;
+      cursor: pointer;
+    }
+    button:disabled { background: #444; cursor: not-allowed; }
+    .toggle {
+      background: transparent;
+      color: #9ca3af;
+      font-weight: 400;
+      padding: 8px 10px;
+      border: 1px solid #444;
+    }
+    .status { margin-top: 16px; min-height: 22px; font-size: 13px; }
+    .status.error { color: #fca5a5; }
+    .status.success { color: #86efac; }
+    .status.info { color: #93c5fd; }
+    .done { text-align: center; }
+    .done h1 { color: #86efac; }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <h1>CE.SDK Lizenz einrichten</h1>
+    <p>
+      Trage hier deinen <strong>CE.SDK License Key</strong> ein. Den Trial-Key bekommst du auf
+      <a href="https://img.ly/dashboard" target="_blank" rel="noopener">img.ly/dashboard</a>.
+      Der Schlüssel wird gegen img.ly validiert und dann lokal in <code>.env</code> gespeichert —
+      er verlässt deine Maschine nicht.
+    </p>
+    <form id="form" autocomplete="off">
+      <label for="license">License Key</label>
+      <input id="license" name="license" type="password" required spellcheck="false"
+             placeholder="ey…" />
+      <div class="row">
+        <button type="submit" id="submit">Speichern &amp; validieren</button>
+        <button type="button" class="toggle" id="toggle">Anzeigen</button>
+      </div>
+      <div class="status" id="status"></div>
+    </form>
+  </div>
+  <script>
+    const form = document.getElementById('form');
+    const input = document.getElementById('license');
+    const submit = document.getElementById('submit');
+    const toggle = document.getElementById('toggle');
+    const status = document.getElementById('status');
+    const card = document.getElementById('card');
+
+    toggle.addEventListener('click', () => {
+      const isPwd = input.type === 'password';
+      input.type = isPwd ? 'text' : 'password';
+      toggle.textContent = isPwd ? 'Verbergen' : 'Anzeigen';
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const license = input.value.trim();
+      if (!license) return;
+      submit.disabled = true;
+      status.className = 'status info';
+      status.textContent = 'Validiere gegen api.img.ly … (5-10 s)';
+      try {
+        const res = await fetch('/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ license }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          status.className = 'status error';
+          status.textContent = data.error || ('Fehler (HTTP ' + res.status + ')');
+          submit.disabled = false;
+          return;
+        }
+        card.innerHTML = '<div class="done"><h1>Fertig.</h1>' +
+          '<p>Der Lizenzschlüssel wurde validiert und in <code>.env</code> gespeichert.</p>' +
+          '<p>Du kannst dieses Fenster schließen und zu Claude zurückkehren.</p></div>';
+      } catch (err) {
+        status.className = 'status error';
+        status.textContent = 'Netzwerkfehler: ' + (err && err.message ? err.message : err);
+        submit.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>`;
+
+export interface WizardResult {
+  saved: boolean;
+}
+
+export async function runLicenseWizard(options: { port?: number } = {}): Promise<WizardResult> {
+  const status = readLicenseStatus();
+  if (status.hasLicense) {
+    process.stdout.write('Lizenz ist bereits in .env gesetzt. Wizard wird übersprungen.\n');
+    return { saved: false };
+  }
+
+  ensureEnvFile();
+
+  const port = await findFreePort(options.port ?? 3458);
+  const url = `http://localhost:${port}/set-license`;
+
+  const app = express();
+  app.use(express.json({ limit: '64kb' }));
+
+  let savedResolve: (() => void) | null = null;
+  const saved = new Promise<void>((resolve) => {
+    savedResolve = resolve;
+  });
+
+  app.get('/set-license', (_req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(WIZARD_HTML);
+  });
+
+  app.get('/', (_req: Request, res: Response) => {
+    res.redirect('/set-license');
+  });
+
+  app.post('/save', async (req: Request, res: Response) => {
+    const body = (req.body ?? {}) as { license?: unknown };
+    const license = typeof body.license === 'string' ? body.license.trim() : '';
+    if (!license) {
+      res.status(400).json({ ok: false, error: 'License Key ist leer.' });
+      return;
+    }
+    if (PLACEHOLDER_VALUES.has(license)) {
+      res.status(400).json({ ok: false, error: 'Bitte einen echten License Key eintragen.' });
+      return;
+    }
+    const result = await validateLicense(license);
+    if (!result.ok) {
+      res.status(400).json({
+        ok: false,
+        error: `Validierung fehlgeschlagen: ${result.reason}`,
+      });
+      return;
+    }
+    try {
+      writeLicense(license);
+    } catch (err) {
+      res.status(500).json({
+        ok: false,
+        error: `Konnte .env nicht schreiben: ${err instanceof Error ? err.message : String(err)}`,
+      });
+      return;
+    }
+    res.json({ ok: true });
+    setTimeout(() => savedResolve?.(), 200);
+  });
+
+  const server: http.Server = await new Promise((resolve, reject) => {
+    const s = app.listen(port, '127.0.0.1');
+    s.once('listening', () => resolve(s));
+    s.once('error', reject);
+  });
+
+  process.stdout.write(`Lizenz-Wizard läuft: ${url}\n`);
+  process.stdout.write('Im Browser öffnen, License Key eintragen und speichern.\n');
+  process.stdout.write('(Der Wizard beendet sich automatisch nach erfolgreichem Speichern.)\n');
+
+  await saved;
+
+  await new Promise<void>((resolve) => {
+    server.close(() => resolve());
+  });
+
+  return { saved: true };
+}

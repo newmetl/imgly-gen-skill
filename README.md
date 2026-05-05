@@ -9,12 +9,10 @@ or through Claude Code, which operates the CLI for you.
 
 ## How do I use this?
 
-Two ways — pick one:
+Two ways:
 
-1. **[Manually via the CLI](#1-manual-usage-via-cli)** — no AI tool required.
-2. **[With Claude Code as a skill](#2-usage-with-claude-code)** — Claude operates the CLI for you.
-
-In both cases the setup is identical.
+1. **[With Claude Code (recommended)](#1-install-via-claude-code)** — one sentence, Claude does the rest.
+2. **[Manually via the CLI](#2-manual-install--usage)** — no AI tool required.
 
 ## Requirements
 
@@ -22,52 +20,63 @@ In both cases the setup is identical.
 - A valid CE.SDK license key — get a free trial key at
   [img.ly/dashboard](https://img.ly/dashboard).
 
-## Setup (one-time)
+---
 
-```bash
-git clone <repo-url> cesdk-social-skill
-cd cesdk-social-skill
-npm run install:all
-cp .env.example .env
-cp editor-app/.env.example editor-app/.env
-# In .env:            CESDK_LICENSE=…
-# In editor-app/.env: VITE_CESDK_LICENSE=…
-npm run build
-```
+## 1. Install via Claude Code
 
-After `npm run build`, `dist/cli/index.js` (CLI) and `editor-app/dist/index.html`
-(browser editor) exist.
+In any terminal where you'd like the skill installed, `cd` into the parent
+directory you want to clone into, start Claude Code, and tell it:
 
-### Make the CLI callable
+> **"Install the skill from this repo: `https://github.com/newmetl/imgly-gen-skill`"**
 
-The `cesdk-social` command isn't on your `PATH` after the build. Three options:
+Claude will:
 
-**a) `npm link` (recommended, one-time action)** — registers `cesdk-social` globally:
+1. clone the repo,
+2. install all dependencies (`npm install` + `npm --prefix editor-app install`),
+3. build (`tsc` + Vite build),
+4. start the **license wizard** in the background and give you a URL like
+   `http://localhost:3458/set-license`.
 
-```bash
-npm link
-```
+You then:
 
-After that the examples below work directly. On some systems this requires `sudo`. Undo
-with `npm unlink -g cesdk-social-skill`.
+1. open that URL,
+2. paste your CE.SDK license key,
+3. click **Speichern & validieren** — the wizard checks the key against `api.img.ly`
+   and writes it into the local `.env`,
+4. tell Claude "fertig".
 
-**b) Call via `node`** — no setup, but a longer command:
+That's it. From this point Claude can use the skill via the CLI directly. It will
+typically follow up with: *"Skill ist installiert. Womit möchtest du anfangen — soll
+ich dir ein Beispiel-Template anlegen, oder hast du schon ein Konzept?"*
 
-```bash
-node dist/cli/index.js init "Autumn Campaign" --platform instagram_square --variables headline,postText
-```
-
-In the examples below, replace each `cesdk-social` with `node dist/cli/index.js`.
-
-**c) Via `npm run …`** — `npm run start -- <args>` invokes the CLI, but with the `--` separator:
-
-```bash
-npm run start -- init "Autumn Campaign" --platform instagram_square --variables headline,postText
-```
+> **Note:** the skill is currently installed locally (only available when Claude is
+> started from the cloned directory). Global install is planned.
 
 ---
 
-## 1. Manual usage via CLI
+## 2. Manual install + usage
+
+```bash
+git clone https://github.com/newmetl/imgly-gen-skill cesdk-social-skill
+cd cesdk-social-skill
+npm run install:all
+npm run build
+node dist/cli/index.js wizard          # opens browser, validates & saves license
+```
+
+After `npm run build`, `dist/cli/index.js` (CLI) and `editor-app/dist/index.html`
+(browser editor) exist. After the wizard finishes, `.env` contains your license.
+
+### Make `cesdk-social` callable
+
+Optional convenience step. Without it, you call `node dist/cli/index.js …`.
+
+```bash
+npm link    # registers `cesdk-social` globally; on some systems requires sudo
+```
+
+Undo with `npm unlink -g cesdk-social-skill`. The remaining manual examples below
+assume you've run `npm link`.
 
 ### Create a template
 
@@ -149,37 +158,10 @@ cesdk-social delete <id> --force   # remove template (output PNGs are kept)
 
 ---
 
-## 2. Usage with Claude Code
-
-The repo contains a skill at [.claude/skills/cesdk-social/SKILL.md](.claude/skills/cesdk-social/SKILL.md).
-As soon as you open the repo in Claude Code, Claude loads the skill automatically.
-
-Flow of a session:
-
-1. **"Create a new Instagram square template 'Autumn Campaign' with variables headline and
-   postText."**
-   → Claude checks the setup, builds the project if needed, and/or asks you to enter your
-   license key in `.env`.
-   → Claude calls `cesdk-social init`.
-
-2. Claude starts the editor in the background and gives you the URL
-   `http://localhost:3456?template=autumn-campaign`. You design the template in the browser and
-   save it.
-
-3. **"Generate 3 posts: apple harvest, pumpkin soup, warm cocoa. Image: ~/Pictures/autumn.jpg."**
-   → Claude formulates a headline + body per post and calls `cesdk-social render` three times.
-   → You get the 3 output paths.
-
-### License key safety
-
-The skill is configured so Claude **does not read or print** `.env` files. The
-license key does not leave your machine.
-
----
-
 ## CLI reference
 
 ```
+cesdk-social wizard [--port <port>]
 cesdk-social init <name> --platform <p> --variables <a,b,c> [--description <d>]
 cesdk-social editor [--port <port>]
 cesdk-social render <id> --image <path> (--vars <json> | --vars-file <path>) [--output <path>]
@@ -188,8 +170,15 @@ cesdk-social list [--json]
 cesdk-social delete <id> --force
 ```
 
-All commands read `CESDK_LICENSE` from `.env` (or the environment). The editor additionally
-reads `VITE_CESDK_LICENSE` from `editor-app/.env`.
+All commands read `CESDK_LICENSE` from `.env` (or the environment). The browser
+editor receives the license at runtime via the editor server — no separate
+`editor-app/.env` needed.
+
+## License key safety (Claude Code)
+
+The skill is configured so Claude **does not read or print** `.env`. The
+license key is set via the wizard (a local browser form) and never passes
+through Claude's tool inputs.
 
 ## Smoketests
 
@@ -206,7 +195,7 @@ critical engine paths.
 ```
 cesdk-social-skill/
 ├── src/
-│   ├── cli/                  # CLI entrypoint + commands
+│   ├── cli/                  # CLI entrypoint + commands (incl. wizard)
 │   │   ├── index.ts
 │   │   └── commands/
 │   ├── engine/
@@ -214,6 +203,8 @@ cesdk-social-skill/
 │   │   └── renderer.ts       # load template → fill → PNG export
 │   ├── editor/
 │   │   └── server.ts         # local Express server for editor UI + ZIP API
+│   ├── setup/
+│   │   └── wizard.ts         # license-key wizard (browser form → .env)
 │   └── storage/
 │       ├── types.ts
 │       └── templateManager.ts
@@ -228,8 +219,7 @@ cesdk-social-skill/
 
 | Variable | Required | Default | Where |
 |---|---|---|---|
-| `CESDK_LICENSE` | yes | – | Root `.env` |
-| `VITE_CESDK_LICENSE` | yes (editor) | – | `editor-app/.env` |
+| `CESDK_LICENSE` | yes | – | Root `.env` (set via wizard) |
 | `TEMPLATES_DIR` | no | `./templates` | Root `.env` |
 | `OUTPUT_DIR` | no | `./output` | Root `.env` |
 | `EDITOR_PORT` | no | `3456` | Root `.env` (or via `--port`) |
@@ -242,6 +232,11 @@ npm run dev:editor          # editor app in Vite dev mode (proxy to 3456)
 npm run typecheck           # type check without build
 ```
 
+For editor-app development with `npm run dev:editor`, the runtime license inject
+isn't available (Vite serves the HTML directly). Set `VITE_CESDK_LICENSE` in
+`editor-app/.env` (this file is **only** for editor-app dev work; end users don't
+need it).
+
 ## Known limitations
 
 - **License validation at startup.** `CreativeEngine.init()` validates the license key
@@ -253,3 +248,5 @@ npm run typecheck           # type check without build
 - **Variables are not re-read from the editor.** The variable list you specify at
   `init` is binding when rendering. If you completely remove `{{name}}` patterns in the
   editor, rendering may ignore variable values.
+- **Local install only.** The skill is currently only available when Claude is
+  started in the cloned directory; making the skill globally available is a later step.

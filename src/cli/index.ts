@@ -8,10 +8,15 @@ import { runRender } from './commands/render.js';
 import { runList } from './commands/list.js';
 import { runDelete } from './commands/delete.js';
 import { runGenerate } from './commands/generate.js';
+import { runWizard } from './commands/wizard.js';
 
 const HELP = `cesdk-social — CE.SDK Social-Media Template-Generator
 
 Befehle:
+  cesdk-social wizard [--port <port>]
+      Startet den lokalen Lizenz-Wizard im Browser; validiert und speichert
+      den CE.SDK License Key in .env. Beendet sich automatisch nach Save.
+
   cesdk-social init <name> --platform <p> --variables <a,b,c> [--description <d>]
       Legt ein neues Template (Draft) an.
 
@@ -52,6 +57,24 @@ async function main(): Promise<void> {
   }
 
   switch (cmd) {
+    case 'wizard': {
+      const { values } = parseArgs({
+        args: rest,
+        options: {
+          port: { type: 'string' },
+        },
+      });
+      let port: number | undefined;
+      if (values.port !== undefined) {
+        port = parseInt(values.port, 10);
+        if (!Number.isFinite(port) || port <= 0) {
+          throw new Error(`--port muss eine positive Zahl sein, nicht '${values.port}'.`);
+        }
+      }
+      await runWizard({ port });
+      break;
+    }
+
     case 'init': {
       const { values, positionals } = parseArgs({
         args: rest,
