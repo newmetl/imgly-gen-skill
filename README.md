@@ -27,30 +27,84 @@ Two ways:
 In any terminal where you'd like the skill installed, `cd` into the parent
 directory you want to clone into, start Claude Code, and tell it:
 
-> **"Install the skill from this repo: `https://github.com/newmetl/imgly-gen-skill`"**
+> **"Clone and set up the CE.SDK social-skill project from
+> `https://github.com/newmetl/imgly-gen-skill` — fetch the README of that
+> repo and follow the section *Claude Code: install runbook* exactly."**
 
-Claude will:
+Claude will then run the steps below. You then:
 
-1. clone the repo,
-2. install all dependencies (`npm install` + `npm --prefix editor-app install`),
-3. build (`tsc` + Vite build),
-4. start the **license wizard** in the background and give you a URL like
-   `http://localhost:3458/set-license`.
-
-You then:
-
-1. open that URL,
+1. open the wizard URL Claude prints (e.g. `http://localhost:3458/set-license`),
 2. paste your CE.SDK license key,
 3. click **Speichern & validieren** — the wizard checks the key against `api.img.ly`
    and writes it into the local `.env`,
 4. tell Claude "fertig".
 
-That's it. From this point Claude can use the skill via the CLI directly. It will
-typically follow up with: *"Skill ist installiert. Womit möchtest du anfangen — soll
-ich dir ein Beispiel-Template anlegen, oder hast du schon ein Konzept?"*
+After that, Claude is ready to operate the skill and will typically ask:
+*"Skill ist installiert. Womit möchtest du anfangen — soll ich dir ein
+Beispiel-Template anlegen, oder hast du schon ein Konzept?"*
 
 > **Note:** the skill is currently installed locally (only available when Claude is
 > started from the cloned directory). Global install is planned.
+
+### Claude Code: install runbook
+
+If you are an AI assistant invoked with "install / set up this repo", the
+phrase **does not** mean "download the SKILL.md and place it under
+`~/.claude/skills/`". This project requires a full clone — the skill operates
+the built CLI (`dist/cli/index.js`), the editor server, and the
+`@cesdk/node` engine. Without those, the skill is non-functional.
+
+Execute these steps in order. Tell the user briefly what you're doing at
+each step; do not ask permission for each one.
+
+1. **Pick a clone location.** Default: `<current-working-directory>/imgly-gen-skill`.
+   If that directory exists and is non-empty, ask the user before overwriting.
+2. **Clone the full repo:**
+   ```bash
+   git clone https://github.com/newmetl/imgly-gen-skill <target-dir>
+   ```
+   (Do not use sparse checkout, do not download individual files.)
+3. **Install dependencies (root + editor-app):**
+   ```bash
+   cd <target-dir> && npm run install:all
+   ```
+4. **Build CLI + editor:**
+   ```bash
+   npm run build
+   ```
+   Verify both `<target-dir>/dist/cli/index.js` and
+   `<target-dir>/editor-app/dist/index.html` exist before proceeding.
+5. **Start the license wizard as a background process** (Bash tool with
+   `run_in_background: true`):
+   ```bash
+   node <target-dir>/dist/cli/index.js wizard
+   ```
+   Read the printed URL from the background output (format
+   `http://localhost:<port>/set-license`).
+   - If the wizard prints `Lizenz ist bereits in .env gesetzt. Wizard wird
+     übersprungen.` and exits, skip to step 7.
+6. **Hand off to the user, verbatim:**
+   > "Skill braucht eine gültige CE.SDK-Lizenz. Öffne `<wizard-url>` im
+   > Browser und trage deinen License Key ein. Trial-Key gibt es auf
+   > https://img.ly/dashboard. Sag Bescheid, wenn du fertig bist."
+
+   Wait for the user's "fertig"/"done". The wizard process exits on its own
+   after a successful save — you don't need to kill it.
+7. **Load the skill knowledge** by reading
+   `<target-dir>/.claude/skills/cesdk-social/SKILL.md`. From this point use
+   absolute paths to invoke the CLI:
+   `node <target-dir>/dist/cli/index.js <command> …`
+8. **Confirm and offer the first concrete next step** (do not just dump
+   docs). Example:
+   > "Skill ist installiert. Womit möchtest du anfangen — soll ich dir ein
+   > Beispiel-Template anlegen, oder hast du schon ein Konzept für ein
+   > Template, das wir bauen sollen?"
+
+**Do not** copy or symlink only the `SKILL.md` into the user's
+`~/.claude/skills/` directory. **Do not** attempt to install via `npx` or
+treat this as a Claude Code plugin. The skill is project-scoped: it lives
+inside the cloned repo and is auto-discovered by future `claude` sessions
+started from that directory.
 
 ---
 
