@@ -38,8 +38,32 @@ npm run build
 Nach `npm run build` existieren `dist/cli/index.js` (CLI) und `editor-app/dist/index.html`
 (Browser-Editor).
 
-Optional: Damit der Befehl global als `cesdk-social` verfügbar ist, einmal
-`npm link` ausführen. Sonst überall durch `npx cesdk-social` ersetzen.
+### CLI aufrufbar machen
+
+Der Befehl `cesdk-social` ist nach dem Build noch nicht im `PATH`. Drei Möglichkeiten:
+
+**a) `npm link` (empfohlen, einmalige Aktion)** — registriert `cesdk-social` global:
+
+```bash
+npm link
+```
+
+Danach funktionieren die Beispiele unten direkt. Auf manchen Systemen braucht das `sudo`. Rückgängig
+mit `npm unlink -g cesdk-social-skill`.
+
+**b) Über `node` aufrufen** — kein Setup, aber längerer Befehl:
+
+```bash
+node dist/cli/index.js init "Herbst-Kampagne" --platform instagram_square --variables headline,postText
+```
+
+In den Beispielen unten dann jedes `cesdk-social` durch `node dist/cli/index.js` ersetzen.
+
+**c) Über `npm run …`** — `npm run start -- <args>` ruft die CLI auf, allerdings mit dem `--`-Trenner:
+
+```bash
+npm run start -- init "Herbst-Kampagne" --platform instagram_square --variables headline,postText
+```
 
 ---
 

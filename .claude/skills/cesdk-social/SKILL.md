@@ -46,10 +46,14 @@ Bevor du irgendeinen `cesdk-social`-Befehl absetzt, prüfe in dieser Reihenfolge
 
 ## Workflow
 
+> Hinweis zu den Befehlen: Du nutzt durchgehend `node dist/cli/index.js …`, weil `cesdk-social`
+> nur nach einem manuellen `npm link` im PATH wäre. Mit `node dist/cli/index.js` läuft die CLI
+> immer und ohne zusätzliche Setup-Schritte des Nutzers.
+
 ### Neues Template anlegen
 
 ```bash
-npx cesdk-social init "<Anzeigename>" \
+node dist/cli/index.js init "<Anzeigename>" \
   --platform <platform> \
   --variables <var1,var2,...> \
   --description "<kurze Beschreibung>"
@@ -65,7 +69,7 @@ stdout enthält die `templateId` (slugifiziert aus dem Namen) und die spätere E
 Starte den Editor **als Hintergrundprozess** (Bash-Tool mit `run_in_background: true`):
 
 ```bash
-npx cesdk-social editor
+node dist/cli/index.js editor
 ```
 
 Lies aus dem Output die URL `http://localhost:3456` (oder den von dir mit `--port` gewählten Port).
@@ -80,7 +84,7 @@ Auf Bestätigung warten. Beim ersten Aufruf lädt CE.SDK Assets vom CDN — 5–
 Sobald der Nutzer „fertig" sagt:
 
 ```bash
-npx cesdk-social render <id> \
+node dist/cli/index.js render <id> \
   --image <absoluter-bildpfad> \
   --vars '{"headline":"…","postText":"…"}'
 ```
@@ -98,9 +102,9 @@ Wenn der Nutzer keine Render-Aufträge mehr hat: den Hintergrundprozess beenden 
 ## Weitere Befehle
 
 ```bash
-npx cesdk-social list              # menschenlesbare Tabelle
-npx cesdk-social list --json       # für Programmverarbeitung
-npx cesdk-social delete <id> --force
+node dist/cli/index.js list              # menschenlesbare Tabelle
+node dist/cli/index.js list --json       # für Programmverarbeitung
+node dist/cli/index.js delete <id> --force
 ```
 
 `delete` entfernt das Template-Archiv und die Metadaten; bereits gerenderte PNGs in `output/` bleiben erhalten.
@@ -112,7 +116,7 @@ npx cesdk-social delete <id> --force
 Statt `--vars '{…}'` geht auch `--vars-file vars.json`. Praktisch für Schleifen mit unterschiedlichen Inhalten oder wenn der JSON-String zu lang/ungewöhnlich für die Shell ist.
 
 ```bash
-npx cesdk-social render herbst-kampagne \
+node dist/cli/index.js render herbst-kampagne \
   --image ~/Bilder/apfel.jpg \
   --vars-file ./posts/post-01.json
 ```
@@ -125,7 +129,7 @@ npx cesdk-social render herbst-kampagne \
 |---|---|---|
 | `CESDK_LICENSE ist nicht gesetzt` | Leere/fehlende `.env` | Nutzer auffordern, Key in `.env` einzutragen. **Datei nicht selbst lesen.** |
 | `Editor-App ist noch nicht gebaut` | `editor-app/dist/` fehlt | `npm run build:editor` ausführen |
-| `Template '…' nicht gefunden` | Falsche ID | `npx cesdk-social list` zur Korrektur |
+| `Template '…' nicht gefunden` | Falsche ID | `node dist/cli/index.js list` zur Korrektur |
 | Port 3456 belegt | Anderer Prozess hält den Port | Mit `cesdk-social editor --port <anderer>` starten |
 | `Template '…' existiert bereits` (bei `init`) | Slug-Kollision | Anderen Namen wählen oder altes Template via `delete --force` entfernen |
 
@@ -134,8 +138,8 @@ npx cesdk-social render herbst-kampagne \
 ## Typische Sequenz (Beispiel)
 
 1. Nutzer: „Lege ein Instagram-Quadrat-Template ‚Herbst-Kampagne' mit Headline und Body an."
-2. Du: `npx cesdk-social init "Herbst-Kampagne" --platform instagram_square --variables headline,postText`
-3. Du: `npx cesdk-social editor` (im Hintergrund) → URL extrahieren
+2. Du: `node dist/cli/index.js init "Herbst-Kampagne" --platform instagram_square --variables headline,postText`
+3. Du: `node dist/cli/index.js editor` (im Hintergrund) → URL extrahieren
 4. Du zum Nutzer: „Öffne http://localhost:3456?template=herbst-kampagne, gestalte und speichere das Template. Sag mir Bescheid."
 5. Nutzer: „Fertig."
 6. Nutzer: „Generiere 3 Posts: Apfelernte, Kürbissuppe, warmer Kakao. Bild: ~/Bilder/herbst.jpg."
