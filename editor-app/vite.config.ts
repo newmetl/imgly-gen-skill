@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  // Read .env from the repo root so VITE_CESDK_LICENSE stays in sync with the
+  // wizard-managed root .env (which also holds CESDK_LICENSE for the server).
+  envDir: '..',
   server: {
     port: 5173,
     proxy: {
