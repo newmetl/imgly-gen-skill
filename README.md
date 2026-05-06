@@ -54,6 +54,13 @@ phrase **does not** mean "download the SKILL.md and place it under
 the built CLI (`dist/cli/index.js`), the editor server, and the
 `@cesdk/node` engine. Without those, the skill is non-functional.
 
+> **Running in a container?** If you are an agent inside OpenClaw or
+> another container/sandbox where the user's browser cannot reach
+> container-loopback ports, follow [docs/OPENCLAW.md](docs/OPENCLAW.md)
+> instead — it handles `NODE_ENV=production` defaults, the loopback-bound
+> license wizard, and the wrong-major global TypeScript that ships with
+> those images.
+
 Execute these steps in order. Tell the user briefly what you're doing at
 each step; do not ask permission for each one.
 
