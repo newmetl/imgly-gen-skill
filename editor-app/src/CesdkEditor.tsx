@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import CreativeEditorSDK from '@cesdk/cesdk-js';
+import {
+  ColorPaletteAssetSource,
+  TypefaceAssetSource,
+} from '@cesdk/cesdk-js/plugins';
 
 interface Props {
   templateId: string;
@@ -50,6 +54,31 @@ export function CesdkEditor({ templateId }: Props): JSX.Element {
         }
         cesdkRef.current = instance;
         const engine = instance.engine;
+
+        await instance.addPlugin(new TypefaceAssetSource());
+        await instance.addPlugin(new ColorPaletteAssetSource());
+
+        instance.feature.enable([
+          'ly.img.inspector.bar',
+          'ly.img.text',
+          'ly.img.text.edit',
+          'ly.img.text.typeface',
+          'ly.img.text.fontSize',
+          'ly.img.text.fontStyle',
+          'ly.img.text.alignment',
+          'ly.img.fill',
+          'ly.img.fill.color',
+        ]);
+        instance.ui.setComponentOrder({ in: 'ly.img.inspector.bar' }, [
+          'ly.img.text.typeFace.inspectorBar',
+          'ly.img.text.fontSize.inspectorBar',
+          'ly.img.text.bold.inspectorBar',
+          'ly.img.text.italic.inspectorBar',
+          'ly.img.separator',
+          'ly.img.text.alignHorizontal.inspectorBar',
+          'ly.img.separator',
+          'ly.img.fill.inspectorBar',
+        ]);
 
         const res = await fetch(
           `/api/template/${encodeURIComponent(templateId)}`,
