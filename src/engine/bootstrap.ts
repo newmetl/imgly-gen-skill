@@ -5,7 +5,12 @@ import {
   PLATFORM_DIMENSIONS,
   type SocialPlatform,
 } from '../storage/types.js';
-import { saveMetadata, saveTemplateArchive } from '../storage/templateManager.js';
+import {
+  getTemplatePaths,
+  saveMetadata,
+  saveTemplateArchive,
+} from '../storage/templateManager.js';
+import { renderThumbnail } from './thumbnail.js';
 
 const ROBOTO_BOLD =
   'https://cdn.img.ly/packages/imgly/cesdk-js/latest/assets/extensions/ly.img.cesdk.fonts/fonts/Roboto/Roboto-Bold.ttf';
@@ -135,5 +140,15 @@ export async function createBaseTemplate(config: BootstrapConfig): Promise<void>
     });
   } finally {
     engine.dispose();
+  }
+
+  const { zip, thumbnail } = getTemplatePaths(config.templateId);
+  try {
+    await renderThumbnail(zip, thumbnail);
+  } catch (err) {
+    console.warn(
+      `[cesdk-social] Failed to render thumbnail for '${config.templateId}':`,
+      err instanceof Error ? err.message : err,
+    );
   }
 }

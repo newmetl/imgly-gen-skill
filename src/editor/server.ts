@@ -5,9 +5,11 @@ import path from 'node:path';
 import express, { type Request, type Response } from 'express';
 
 import { EDITOR_DIST_DIR } from '../paths.js';
+import { renderThumbnail } from '../engine/thumbnail.js';
 import {
   getTemplatePaths,
   listTemplates,
+  loadMetadata,
   templateExists,
   updateMetadata,
 } from '../storage/templateManager.js';
@@ -57,7 +59,7 @@ function buildApp(): express.Express {
     res.sendFile(zip);
   });
 
-  app.post('/api/template/:id', (req: Request, res: Response) => {
+  app.post('/api/template/:id', async (req: Request, res: Response) => {
     const id = idOf(req);
     if (!id || !templateExists(id)) {
       res
@@ -82,10 +84,49 @@ function buildApp(): express.Express {
       res.status(400).json({ error: 'Body does not have a ZIP signature.' });
       return;
     }
-    const { zip } = getTemplatePaths(id);
+    const { zip, thumbnail } = getTemplatePaths(id);
     fs.writeFileSync(zip, body);
     updateMetadata(id, {});
+    try {
+      await renderThumbnail(zip, thumbnail);
+    } catch (err) {
+      console.warn(
+        `[cesdk-social] Failed to render thumbnail for '${id}':`,
+        err instanceof Error ? err.message : err,
+      );
+    }
     res.json({ ok: true, size: body.length });
+  });
+
+  app.get('/api/template/:id/thumb', async (req: Request, res: Response) => {
+    const id = idOf(req);
+    if (!id || !templateExists(id)) {
+      res.status(404).json({ error: `Template '${id}' not found.` });
+      return;
+    }
+    const { zip, thumbnail } = getTemplatePaths(id);
+
+    if (!fs.existsSync(thumbnail)) {
+      try {
+        await renderThumbnail(zip, thumbnail);
+      } catch (err) {
+        console.warn(
+          `[cesdk-social] Failed to render thumbnail for '${id}':`,
+          err instanceof Error ? err.message : err,
+        );
+        let platform = 'instagram_square';
+        try {
+          platform = loadMetadata(id).platform;
+        } catch {
+          // Fallback already initialised; metadata may be missing.
+        }
+        res.redirect(302, `/thumbs/${platform}.svg`);
+        return;
+      }
+    }
+
+    res.setHeader('Content-Type', 'image/png');
+    res.sendFile(thumbnail);
   });
 
   if (fs.existsSync(EDITOR_DIST_DIR)) {

@@ -154,7 +154,7 @@ export function CesdkEditor({ templateId }: Props): JSX.Element {
               label: { en: t.name, de: t.name },
               meta: {
                 uri: `${origin}/api/template/${encodeURIComponent(t.id)}`,
-                thumbUri: `${origin}/thumbs/${t.platform}.svg`,
+                thumbUri: `${origin}/api/template/${encodeURIComponent(t.id)}/thumb`,
               },
             });
           }

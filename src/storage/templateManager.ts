@@ -16,6 +16,7 @@ export interface TemplatePaths {
   dir: string;
   zip: string;
   meta: string;
+  thumbnail: string;
   fileUrl: string;
 }
 
@@ -34,6 +35,7 @@ export function getTemplatePaths(id: string): TemplatePaths {
     dir,
     zip,
     meta: path.join(dir, 'metadata.json'),
+    thumbnail: path.join(dir, 'thumbnail.png'),
     fileUrl: pathToFileURL(zip).href,
   };
 }
