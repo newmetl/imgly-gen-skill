@@ -2,17 +2,17 @@ import { startEditorServer, stopEditorServer } from '../../editor/server.js';
 
 export async function runEditor(port?: number): Promise<void> {
   const url = await startEditorServer(port);
-  process.stdout.write(`Editor läuft unter ${url}\n`);
-  process.stdout.write(`Mit Template-ID öffnen: ${url}?template=<id>\n`);
-  process.stdout.write(`Stoppen mit Ctrl+C.\n`);
+  process.stdout.write(`Editor running at ${url}\n`);
+  process.stdout.write(`Open with a template ID: ${url}?template=<id>\n`);
+  process.stdout.write(`Stop with Ctrl+C.\n`);
 
   const shutdown = async (signal: string): Promise<void> => {
-    process.stderr.write(`\nEditor-Server stoppt (${signal}) ...\n`);
+    process.stderr.write(`\nEditor server stopping (${signal}) ...\n`);
     try {
       await stopEditorServer();
     } catch (err) {
       process.stderr.write(
-        `Fehler beim Stoppen: ${err instanceof Error ? err.message : String(err)}\n`,
+        `Error while stopping: ${err instanceof Error ? err.message : String(err)}\n`,
       );
     }
     process.exit(0);
@@ -21,7 +21,7 @@ export async function runEditor(port?: number): Promise<void> {
   process.on('SIGINT', () => void shutdown('SIGINT'));
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
 
-  // Foreground halten, bis ein Signal kommt.
+  // Hold the foreground until a signal arrives.
   await new Promise<void>(() => {
     /* never resolves */
   });

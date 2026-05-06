@@ -1,6 +1,9 @@
 #!/usr/bin/env node
-import 'dotenv/config';
+import { config as loadDotenv } from 'dotenv';
 import { parseArgs } from 'node:util';
+
+import { ENV_FILE } from '../paths.js';
+loadDotenv({ path: ENV_FILE });
 
 import { runInit } from './commands/init.js';
 import { runEditor } from './commands/editor.js';
@@ -10,40 +13,40 @@ import { runDelete } from './commands/delete.js';
 import { runGenerate } from './commands/generate.js';
 import { runWizard } from './commands/wizard.js';
 
-const HELP = `cesdk-social — CE.SDK Social-Media Template-Generator
+const HELP = `cesdk-social — CE.SDK social media template generator
 
-Befehle:
+Commands:
   cesdk-social wizard [--port <port>]
-      Startet den lokalen Lizenz-Wizard im Browser; validiert und speichert
-      den CE.SDK License Key in .env. Beendet sich automatisch nach Save.
+      Starts the local license wizard in the browser; validates and stores
+      the CE.SDK license key in .env. Exits automatically after save.
 
   cesdk-social init <name> --platform <p> --variables <a,b,c> [--description <d>]
-      Legt ein neues Template (Draft) an.
+      Creates a new template (draft).
 
   cesdk-social editor [--port <port>]
-      Startet den lokalen Browser-Editor (Foreground, Ctrl+C zum Stoppen).
+      Starts the local browser editor (foreground; Ctrl+C to stop).
 
-  cesdk-social render <id> --image <pfad> (--vars <json> | --vars-file <pfad>) [--output <pfad>]
-      Rendert einen Post als PNG; gibt den Output-Pfad auf stdout aus.
+  cesdk-social render <id> --image <path> (--vars <json> | --vars-file <path>) [--output <path>]
+      Renders a post as PNG; prints the output path to stdout.
 
-  cesdk-social generate "<prompt>" [--output <pfad>] [--width <n>] [--height <n>] [--seed <n>] [--model <name>]
-      Generiert ein Bild über pollinations.ai; gibt den Output-Pfad auf stdout aus.
+  cesdk-social generate "<prompt>" [--output <path>] [--width <n>] [--height <n>] [--seed <n>] [--model <name>]
+      Generates an image via pollinations.ai; prints the output path to stdout.
 
   cesdk-social list [--json]
-      Listet alle Templates.
+      Lists all templates.
 
   cesdk-social delete <id> --force
-      Löscht ein Template.
+      Deletes a template.
 
-Plattformen:
+Platforms:
   facebook, instagram_square, instagram_story, instagram_landscape, linkedin, twitter
 
-Beispiele:
-  cesdk-social init "Herbst-Kampagne" --platform instagram_square --variables headline,body
+Examples:
+  cesdk-social init "Autumn Campaign" --platform instagram_square --variables headline,body
   cesdk-social editor
-  cesdk-social render herbst-kampagne --image ~/foto.jpg \\
-    --vars '{"headline":"Apfelernte","body":"Frisch vom Hof."}'
-  cesdk-social generate "herbstliche Apfelernte, Korb voller roter Aepfel"
+  cesdk-social render autumn-campaign --image ~/photo.jpg \\
+    --vars '{"headline":"Apple Harvest","body":"Fresh from the farm."}'
+  cesdk-social generate "autumnal apple harvest, basket full of red apples"
 `;
 
 async function main(): Promise<void> {
@@ -68,7 +71,7 @@ async function main(): Promise<void> {
       if (values.port !== undefined) {
         port = parseInt(values.port, 10);
         if (!Number.isFinite(port) || port <= 0) {
-          throw new Error(`--port muss eine positive Zahl sein, nicht '${values.port}'.`);
+          throw new Error(`--port must be a positive number, not '${values.port}'.`);
         }
       }
       await runWizard({ port });
@@ -86,9 +89,9 @@ async function main(): Promise<void> {
         },
       });
       const name = positionals[0];
-      if (!name) throw new Error('Argument <name> fehlt.');
-      if (!values.platform) throw new Error('--platform ist erforderlich.');
-      if (!values.variables) throw new Error('--variables ist erforderlich.');
+      if (!name) throw new Error('Missing argument <name>.');
+      if (!values.platform) throw new Error('--platform is required.');
+      if (!values.variables) throw new Error('--variables is required.');
       await runInit({
         name,
         platform: values.platform,
@@ -109,7 +112,7 @@ async function main(): Promise<void> {
       if (values.port !== undefined) {
         port = parseInt(values.port, 10);
         if (!Number.isFinite(port) || port <= 0) {
-          throw new Error(`--port muss eine positive Zahl sein, nicht '${values.port}'.`);
+          throw new Error(`--port must be a positive number, not '${values.port}'.`);
         }
       }
       await runEditor(port);
@@ -128,8 +131,8 @@ async function main(): Promise<void> {
         },
       });
       const id = positionals[0];
-      if (!id) throw new Error('Argument <id> fehlt.');
-      if (!values.image) throw new Error('--image ist erforderlich.');
+      if (!id) throw new Error('Missing argument <id>.');
+      if (!values.image) throw new Error('--image is required.');
       await runRender({
         templateId: id,
         image: values.image,
@@ -153,12 +156,12 @@ async function main(): Promise<void> {
         },
       });
       const prompt = positionals.join(' ').trim();
-      if (!prompt) throw new Error('Argument <prompt> fehlt.');
+      if (!prompt) throw new Error('Missing argument <prompt>.');
       const parseDim = (raw: string | undefined, name: string): number | undefined => {
         if (raw === undefined) return undefined;
         const n = parseInt(raw, 10);
         if (!Number.isFinite(n) || n <= 0) {
-          throw new Error(`--${name} muss eine positive Zahl sein, nicht '${raw}'.`);
+          throw new Error(`--${name} must be a positive number, not '${raw}'.`);
         }
         return n;
       };
@@ -193,19 +196,19 @@ async function main(): Promise<void> {
         },
       });
       const id = positionals[0];
-      if (!id) throw new Error('Argument <id> fehlt.');
+      if (!id) throw new Error('Missing argument <id>.');
       runDelete(id, values.force ?? false);
       break;
     }
 
     default:
-      process.stderr.write(`Unbekannter Befehl: ${cmd}\n\n${HELP}`);
+      process.stderr.write(`Unknown command: ${cmd}\n\n${HELP}`);
       process.exit(1);
   }
 }
 
 main().catch((err) => {
-  process.stderr.write(`Fehler: ${err instanceof Error ? err.message : String(err)}\n`);
+  process.stderr.write(`Error: ${err instanceof Error ? err.message : String(err)}\n`);
   if (process.env.DEBUG && err instanceof Error && err.stack) {
     process.stderr.write(err.stack + '\n');
   }

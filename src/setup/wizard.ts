@@ -1,12 +1,11 @@
 import fs from 'node:fs';
 import http from 'node:http';
 import net from 'node:net';
-import path from 'node:path';
 
 import express, { type Request, type Response } from 'express';
 
-const ENV_PATH = path.resolve('./.env');
-const ENV_EXAMPLE_PATH = path.resolve('./.env.example');
+import { ENV_FILE, ENV_EXAMPLE_FILE } from '../paths.js';
+
 const PLACEHOLDER_VALUES = new Set(['', 'your_license_key_here']);
 
 export interface LicenseStatus {
@@ -16,10 +15,10 @@ export interface LicenseStatus {
 }
 
 export function readLicenseStatus(): LicenseStatus {
-  if (!fs.existsSync(ENV_PATH)) {
+  if (!fs.existsSync(ENV_FILE)) {
     return { hasEnvFile: false, hasLicense: false, value: null };
   }
-  const text = fs.readFileSync(ENV_PATH, 'utf8');
+  const text = fs.readFileSync(ENV_FILE, 'utf8');
   const value = parseEnvValue(text, 'CESDK_LICENSE');
   if (value === null || PLACEHOLDER_VALUES.has(value)) {
     return { hasEnvFile: true, hasLicense: false, value };
@@ -35,7 +34,6 @@ function parseEnvValue(text: string, key: string): string | null {
     if (eq === -1) continue;
     if (line.slice(0, eq).trim() !== key) continue;
     let value = line.slice(eq + 1).trim();
-    // Inline-Kommentar abschneiden (nur außerhalb von Quotes)
     if (
       (value.startsWith('"') && value.endsWith('"') && value.length >= 2) ||
       (value.startsWith("'") && value.endsWith("'") && value.length >= 2)
@@ -50,17 +48,17 @@ function parseEnvValue(text: string, key: string): string | null {
 }
 
 export function ensureEnvFile(): void {
-  if (fs.existsSync(ENV_PATH)) return;
-  if (!fs.existsSync(ENV_EXAMPLE_PATH)) {
-    fs.writeFileSync(ENV_PATH, 'CESDK_LICENSE=\n', 'utf8');
+  if (fs.existsSync(ENV_FILE)) return;
+  if (!fs.existsSync(ENV_EXAMPLE_FILE)) {
+    fs.writeFileSync(ENV_FILE, 'CESDK_LICENSE=\n', 'utf8');
     return;
   }
-  fs.copyFileSync(ENV_EXAMPLE_PATH, ENV_PATH);
+  fs.copyFileSync(ENV_EXAMPLE_FILE, ENV_FILE);
 }
 
 export function writeLicense(license: string): void {
   ensureEnvFile();
-  const original = fs.readFileSync(ENV_PATH, 'utf8');
+  const original = fs.readFileSync(ENV_FILE, 'utf8');
   const lines = original.split(/\r?\n/);
   let replaced = false;
   const next = lines.map((rawLine) => {
@@ -73,12 +71,12 @@ export function writeLicense(license: string): void {
     return `CESDK_LICENSE=${license}`;
   });
   if (!replaced) next.push(`CESDK_LICENSE=${license}`);
-  fs.writeFileSync(ENV_PATH, next.join('\n'), 'utf8');
+  fs.writeFileSync(ENV_FILE, next.join('\n'), 'utf8');
 }
 
 async function validateLicense(license: string): Promise<{ ok: true } | { ok: false; reason: string }> {
-  // CE.SDK validiert beim CreativeEngine.init() einmalig gegen api.img.ly.
-  // Wenn der Key ungültig ist, wirft init synchron oder asynchron.
+  // CE.SDK validates against api.img.ly during CreativeEngine.init().
+  // An invalid key throws synchronously or asynchronously.
   const cesdk = await import('@cesdk/node');
   const CreativeEngine = cesdk.default;
   let engine: Awaited<ReturnType<typeof CreativeEngine.init>> | null = null;
@@ -100,7 +98,7 @@ async function findFreePort(start: number, attempts = 20): Promise<number> {
     const port = start + i;
     if (await isPortFree(port)) return port;
   }
-  throw new Error(`Kein freier Port im Bereich ${start}-${start + attempts - 1}.`);
+  throw new Error(`No free port available in range ${start}-${start + attempts - 1}.`);
 }
 
 function isPortFree(port: number): Promise<boolean> {
@@ -115,11 +113,11 @@ function isPortFree(port: number): Promise<boolean> {
 }
 
 const WIZARD_HTML = `<!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CE.SDK Lizenz einrichten</title>
+  <title>Set up CE.SDK license</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -187,20 +185,20 @@ const WIZARD_HTML = `<!doctype html>
 </head>
 <body>
   <div class="card" id="card">
-    <h1>CE.SDK Lizenz einrichten</h1>
+    <h1>Set up CE.SDK license</h1>
     <p>
-      Trage hier deinen <strong>CE.SDK License Key</strong> ein. Den Trial-Key bekommst du auf
+      Enter your <strong>CE.SDK license key</strong> below. You can get a free trial key at
       <a href="https://img.ly/dashboard" target="_blank" rel="noopener">img.ly/dashboard</a>.
-      Der Schlüssel wird gegen img.ly validiert und dann lokal in <code>.env</code> gespeichert —
-      er verlässt deine Maschine nicht.
+      The key is validated against img.ly and then stored locally in <code>.env</code> —
+      it never leaves your machine.
     </p>
     <form id="form" autocomplete="off">
-      <label for="license">License Key</label>
+      <label for="license">License key</label>
       <input id="license" name="license" type="password" required spellcheck="false"
              placeholder="ey…" />
       <div class="row">
-        <button type="submit" id="submit">Speichern &amp; validieren</button>
-        <button type="button" class="toggle" id="toggle">Anzeigen</button>
+        <button type="submit" id="submit">Save &amp; validate</button>
+        <button type="button" class="toggle" id="toggle">Show</button>
       </div>
       <div class="status" id="status"></div>
     </form>
@@ -216,7 +214,7 @@ const WIZARD_HTML = `<!doctype html>
     toggle.addEventListener('click', () => {
       const isPwd = input.type === 'password';
       input.type = isPwd ? 'text' : 'password';
-      toggle.textContent = isPwd ? 'Verbergen' : 'Anzeigen';
+      toggle.textContent = isPwd ? 'Hide' : 'Show';
     });
 
     form.addEventListener('submit', async (e) => {
@@ -225,7 +223,7 @@ const WIZARD_HTML = `<!doctype html>
       if (!license) return;
       submit.disabled = true;
       status.className = 'status info';
-      status.textContent = 'Validiere gegen api.img.ly … (5-10 s)';
+      status.textContent = 'Validating against api.img.ly … (5–10 s)';
       try {
         const res = await fetch('/save', {
           method: 'POST',
@@ -235,16 +233,16 @@ const WIZARD_HTML = `<!doctype html>
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.ok) {
           status.className = 'status error';
-          status.textContent = data.error || ('Fehler (HTTP ' + res.status + ')');
+          status.textContent = data.error || ('Error (HTTP ' + res.status + ')');
           submit.disabled = false;
           return;
         }
-        card.innerHTML = '<div class="done"><h1>Fertig.</h1>' +
-          '<p>Der Lizenzschlüssel wurde validiert und in <code>.env</code> gespeichert.</p>' +
-          '<p>Du kannst dieses Fenster schließen und zu Claude zurückkehren.</p></div>';
+        card.innerHTML = '<div class="done"><h1>Done.</h1>' +
+          '<p>The license key was validated and saved to <code>.env</code>.</p>' +
+          '<p>You can close this window and return to Claude.</p></div>';
       } catch (err) {
         status.className = 'status error';
-        status.textContent = 'Netzwerkfehler: ' + (err && err.message ? err.message : err);
+        status.textContent = 'Network error: ' + (err && err.message ? err.message : err);
         submit.disabled = false;
       }
     });
@@ -259,7 +257,7 @@ export interface WizardResult {
 export async function runLicenseWizard(options: { port?: number } = {}): Promise<WizardResult> {
   const status = readLicenseStatus();
   if (status.hasLicense) {
-    process.stdout.write('Lizenz ist bereits in .env gesetzt. Wizard wird übersprungen.\n');
+    process.stdout.write('License is already set in .env. Skipping wizard.\n');
     return { saved: false };
   }
 
@@ -290,18 +288,18 @@ export async function runLicenseWizard(options: { port?: number } = {}): Promise
     const body = (req.body ?? {}) as { license?: unknown };
     const license = typeof body.license === 'string' ? body.license.trim() : '';
     if (!license) {
-      res.status(400).json({ ok: false, error: 'License Key ist leer.' });
+      res.status(400).json({ ok: false, error: 'License key is empty.' });
       return;
     }
     if (PLACEHOLDER_VALUES.has(license)) {
-      res.status(400).json({ ok: false, error: 'Bitte einen echten License Key eintragen.' });
+      res.status(400).json({ ok: false, error: 'Please enter a real license key.' });
       return;
     }
     const result = await validateLicense(license);
     if (!result.ok) {
       res.status(400).json({
         ok: false,
-        error: `Validierung fehlgeschlagen: ${result.reason}`,
+        error: `Validation failed: ${result.reason}`,
       });
       return;
     }
@@ -310,7 +308,7 @@ export async function runLicenseWizard(options: { port?: number } = {}): Promise
     } catch (err) {
       res.status(500).json({
         ok: false,
-        error: `Konnte .env nicht schreiben: ${err instanceof Error ? err.message : String(err)}`,
+        error: `Could not write .env: ${err instanceof Error ? err.message : String(err)}`,
       });
       return;
     }
@@ -324,9 +322,9 @@ export async function runLicenseWizard(options: { port?: number } = {}): Promise
     s.once('error', reject);
   });
 
-  process.stdout.write(`Lizenz-Wizard läuft: ${url}\n`);
-  process.stdout.write('Im Browser öffnen, License Key eintragen und speichern.\n');
-  process.stdout.write('(Der Wizard beendet sich automatisch nach erfolgreichem Speichern.)\n');
+  process.stdout.write(`License wizard running: ${url}\n`);
+  process.stdout.write('Open in your browser, enter your license key, and save.\n');
+  process.stdout.write('(The wizard exits automatically after a successful save.)\n');
 
   await saved;
 

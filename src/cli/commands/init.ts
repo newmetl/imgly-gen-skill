@@ -12,7 +12,7 @@ export interface InitArgs {
 export async function runInit(args: InitArgs): Promise<void> {
   if (!(SOCIAL_PLATFORMS as readonly string[]).includes(args.platform)) {
     throw new Error(
-      `Unbekannte Plattform '${args.platform}'. Erlaubt: ${SOCIAL_PLATFORMS.join(', ')}`,
+      `Unknown platform '${args.platform}'. Allowed: ${SOCIAL_PLATFORMS.join(', ')}`,
     );
   }
 
@@ -22,18 +22,18 @@ export async function runInit(args: InitArgs): Promise<void> {
     .filter((v) => v.length > 0);
   if (variables.length === 0) {
     throw new Error(
-      'Mindestens eine Variable muss angegeben werden, z. B. --variables headline,body',
+      'At least one variable must be provided, e.g. --variables headline,body',
     );
   }
 
   const templateId = slugify(args.name);
   if (!templateId) {
-    throw new Error('Aus dem Namen konnte keine gültige Template-ID gebildet werden.');
+    throw new Error('Could not derive a valid template ID from the name.');
   }
   if (templateExists(templateId)) {
     throw new Error(
-      `Template '${templateId}' existiert bereits. ` +
-        `Anderen Namen wählen oder mit "cesdk-social delete ${templateId} --force" löschen.`,
+      `Template '${templateId}' already exists. ` +
+        `Choose a different name or delete it with "cesdk-social delete ${templateId} --force".`,
     );
   }
 
@@ -45,9 +45,9 @@ export async function runInit(args: InitArgs): Promise<void> {
     variables,
   });
 
-  process.stdout.write(`Template angelegt: ${templateId}\n`);
+  process.stdout.write(`Template created: ${templateId}\n`);
   process.stdout.write(
-    `Editor starten mit: cesdk-social editor\n` +
-      `Editor-URL nach Start:  http://localhost:3456?template=${encodeURIComponent(templateId)}\n`,
+    `Start the editor with: cesdk-social editor\n` +
+      `Editor URL after start: http://localhost:3456?template=${encodeURIComponent(templateId)}\n`,
   );
 }

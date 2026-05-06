@@ -7,7 +7,7 @@ export function runList(json: boolean): void {
     return;
   }
   if (templates.length === 0) {
-    process.stdout.write('Keine Templates vorhanden.\n');
+    process.stdout.write('No templates available.\n');
     return;
   }
   for (const t of templates) {

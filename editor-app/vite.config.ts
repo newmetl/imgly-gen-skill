@@ -6,8 +6,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // Im Vite-Dev-Modus läuft der MCP-Skill Editor-Server parallel auf 3456
-      // und stellt die Template-API bereit.
+      // In Vite dev mode, the editor server runs in parallel on 3456
+      // and serves the template API.
       '/api': {
         target: 'http://localhost:3456',
         changeOrigin: true,
@@ -18,5 +18,16 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     sourcemap: false,
+    // CE.SDK is a large dependency (~2.5 MB minified). Splitting it into its
+    // own chunk lets the browser cache it independently of app-code changes.
+    chunkSizeWarningLimit: 3000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          cesdk: ['@cesdk/cesdk-js'],
+          react: ['react', 'react-dom'],
+        },
+      },
+    },
   },
 });

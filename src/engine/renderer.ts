@@ -15,7 +15,7 @@ function requireLicense(): string {
   const license = process.env.CESDK_LICENSE;
   if (!license) {
     throw new Error(
-      'CESDK_LICENSE ist nicht gesetzt. Bitte in .env (oder ENV) den img.ly Lizenzschlüssel hinterlegen.',
+      'CESDK_LICENSE is not set. Add your img.ly license key to .env (or the environment).',
     );
   }
   return license;
@@ -27,13 +27,13 @@ export async function renderPost(job: RenderJob): Promise<RenderResult> {
   const missing = meta.variables.filter((v) => !(v in job.variables));
   if (missing.length > 0) {
     throw new Error(
-      `Fehlende Variablen für '${job.templateId}': ${missing.join(', ')}`,
+      `Missing variables for '${job.templateId}': ${missing.join(', ')}`,
     );
   }
 
   const absImagePath = path.resolve(job.imagePath);
   if (!fs.existsSync(absImagePath)) {
-    throw new Error(`Bild nicht gefunden: ${absImagePath}`);
+    throw new Error(`Image not found: ${absImagePath}`);
   }
 
   const license = requireLicense();
@@ -62,7 +62,7 @@ export async function renderPost(job: RenderJob): Promise<RenderResult> {
 
     const [page] = engine.block.findByType('page');
     if (page == null) {
-      throw new Error('Geladenes Template enthält keine Page.');
+      throw new Error('Loaded template contains no page.');
     }
 
     const blob = await engine.block.export(page, {

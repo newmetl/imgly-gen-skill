@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import express, { type Request, type Response } from 'express';
 
+import { EDITOR_DIST_DIR } from '../paths.js';
 import {
   getTemplatePaths,
   templateExists,
@@ -11,7 +12,6 @@ import {
 } from '../storage/templateManager.js';
 
 const DEFAULT_EDITOR_PORT = 3456;
-const EDITOR_DIST_DIR = path.resolve('./editor-app/dist');
 const HEALTH_PATH = '/__health';
 const SHUTDOWN_TIMEOUT_MS = 5000;
 
@@ -21,7 +21,7 @@ let serverUrl: string | null = null;
 function buildApp(): express.Express {
   const app = express();
 
-  // Roher ZIP-Body — kein base64, kein multipart. Limit großzügig (50 MB).
+  // Raw ZIP body — no base64, no multipart. Generous 50 MB limit.
   app.use(
     '/api/template/:id',
     express.raw({ type: 'application/zip', limit: '50mb' }),
@@ -39,7 +39,7 @@ function buildApp(): express.Express {
   app.get('/api/template/:id', (req: Request, res: Response) => {
     const id = idOf(req);
     if (!id || !templateExists(id)) {
-      res.status(404).json({ error: `Template '${id}' nicht gefunden.` });
+      res.status(404).json({ error: `Template '${id}' not found.` });
       return;
     }
     const { zip } = getTemplatePaths(id);
@@ -52,14 +52,14 @@ function buildApp(): express.Express {
     if (!id || !templateExists(id)) {
       res
         .status(404)
-        .json({ error: `Template '${id}' nicht gefunden. Zuerst setup_template aufrufen.` });
+        .json({ error: `Template '${id}' not found. Run init first.` });
       return;
     }
     const body = req.body as Buffer | undefined;
     if (!Buffer.isBuffer(body) || body.length === 0) {
       res.status(400).json({
         error:
-          'Erwartet Content-Type "application/zip" mit Roh-Body. Kein gültiger Body empfangen.',
+          'Expected Content-Type "application/zip" with raw body. No valid body received.',
       });
       return;
     }
@@ -69,7 +69,7 @@ function buildApp(): express.Express {
       body[2] !== 0x03 ||
       body[3] !== 0x04
     ) {
-      res.status(400).json({ error: 'Body hat keine ZIP-Signatur.' });
+      res.status(400).json({ error: 'Body does not have a ZIP signature.' });
       return;
     }
     const { zip } = getTemplatePaths(id);
@@ -84,8 +84,8 @@ function buildApp(): express.Express {
 
     const sendIndex = (_req: Request, res: Response): void => {
       const license = process.env.CESDK_LICENSE ?? '';
-      // Lizenz zur Laufzeit ins HTML injizieren (statt zweite .env im editor-app).
-      // JSON.stringify quotet & escaped sicher (verhindert Skript-Injection).
+      // Inject the license into the HTML at runtime (avoids a second .env in editor-app).
+      // JSON.stringify quotes & escapes safely (prevents script injection).
       const inject = `<script>window.__CESDK_LICENSE__=${JSON.stringify(license)};</script>`;
       const html = indexHtml.replace('</head>', `${inject}</head>`);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -94,10 +94,10 @@ function buildApp(): express.Express {
     };
 
     app.get(['/', '/index.html'], sendIndex);
-    // Statische Assets (JS, CSS, Fonts ...) — index NICHT erneut über static
-    // ausliefern, sonst überspringt Express den injizierenden Handler.
+    // Static assets (JS, CSS, fonts ...) — do NOT re-serve index via static,
+    // otherwise Express skips the injecting handler.
     app.use(express.static(EDITOR_DIST_DIR, { index: false }));
-    // SPA-Fallback: alle nicht-API-Requests auf index.html (mit Inject) umlenken
+    // SPA fallback: route all non-API requests to index.html (with inject).
     app.get(/^\/(?!api\/|__health$).*/, sendIndex);
   } else {
     app.get('/', (_req: Request, res: Response) => {
@@ -105,9 +105,9 @@ function buildApp(): express.Express {
         .status(503)
         .type('text/plain')
         .send(
-          'Editor-App ist noch nicht gebaut. ' +
-            'Bitte einmal "npm --prefix editor-app install && npm --prefix editor-app run build" ausführen.\n' +
-            `Erwarteter Pfad: ${EDITOR_DIST_DIR}`,
+          'Editor app is not built yet. ' +
+            'Please run "npm --prefix editor-app install && npm --prefix editor-app run build" once.\n' +
+            `Expected path: ${EDITOR_DIST_DIR}`,
         );
     });
   }
@@ -122,11 +122,11 @@ async function waitForHealth(url: string, timeoutMs = 10_000): Promise<void> {
       const res = await fetch(`${url}${HEALTH_PATH}`);
       if (res.ok) return;
     } catch {
-      // noch nicht bereit
+      // not ready yet
     }
     await new Promise((r) => setTimeout(r, 100));
   }
-  throw new Error(`Editor-Server wurde nicht innerhalb von ${timeoutMs}ms bereit.`);
+  throw new Error(`Editor server did not become ready within ${timeoutMs}ms.`);
 }
 
 export async function startEditorServer(port?: number): Promise<string> {
@@ -135,7 +135,7 @@ export async function startEditorServer(port?: number): Promise<string> {
   const actualPort =
     port ?? parseInt(process.env.EDITOR_PORT ?? String(DEFAULT_EDITOR_PORT), 10);
   if (!Number.isFinite(actualPort) || actualPort <= 0) {
-    throw new Error(`Ungültiger Editor-Port: ${actualPort}`);
+    throw new Error(`Invalid editor port: ${actualPort}`);
   }
 
   const app = buildApp();

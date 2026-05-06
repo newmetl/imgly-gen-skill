@@ -2,13 +2,13 @@ import { deleteTemplate, templateExists } from '../../storage/templateManager.js
 
 export function runDelete(templateId: string, force: boolean): void {
   if (!templateExists(templateId)) {
-    throw new Error(`Template '${templateId}' existiert nicht.`);
+    throw new Error(`Template '${templateId}' does not exist.`);
   }
   if (!force) {
     throw new Error(
-      `Löschen abgebrochen — bitte --force anhängen, um '${templateId}' wirklich zu löschen.`,
+      `Delete aborted — pass --force to actually delete '${templateId}'.`,
     );
   }
   deleteTemplate(templateId);
-  process.stdout.write(`Template '${templateId}' gelöscht.\n`);
+  process.stdout.write(`Template '${templateId}' deleted.\n`);
 }

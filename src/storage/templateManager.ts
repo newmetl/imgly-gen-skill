@@ -2,10 +2,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import { DEFAULT_TEMPLATES_DIR, DEFAULT_OUTPUT_DIR } from '../paths.js';
 import type { TemplateMetadata } from './types.js';
 
-const TEMPLATES_DIR = path.resolve(process.env.TEMPLATES_DIR ?? './templates');
-const OUTPUT_DIR = path.resolve(process.env.OUTPUT_DIR ?? './output');
+const TEMPLATES_DIR = process.env.TEMPLATES_DIR
+  ? path.resolve(process.env.TEMPLATES_DIR)
+  : DEFAULT_TEMPLATES_DIR;
+const OUTPUT_DIR = process.env.OUTPUT_DIR
+  ? path.resolve(process.env.OUTPUT_DIR)
+  : DEFAULT_OUTPUT_DIR;
 
 export interface TemplatePaths {
   dir: string;
@@ -46,7 +51,7 @@ export function saveTemplateArchive(id: string, data: Buffer): void {
 export function readTemplateArchive(id: string): Buffer {
   const { zip } = getTemplatePaths(id);
   if (!fs.existsSync(zip)) {
-    throw new Error(`Template-Archiv fehlt für '${id}': ${zip}`);
+    throw new Error(`Template archive missing for '${id}': ${zip}`);
   }
   return fs.readFileSync(zip);
 }
@@ -60,7 +65,7 @@ export function saveMetadata(meta: TemplateMetadata): void {
 export function loadMetadata(id: string): TemplateMetadata {
   const { meta } = getTemplatePaths(id);
   if (!fs.existsSync(meta)) {
-    throw new Error(`Template '${id}' nicht gefunden (${meta})`);
+    throw new Error(`Template '${id}' not found (${meta})`);
   }
   const raw = fs.readFileSync(meta, 'utf-8');
   return JSON.parse(raw) as TemplateMetadata;
@@ -93,7 +98,7 @@ export function listTemplates(): TemplateMetadata[] {
     try {
       templates.push(loadMetadata(entry.name));
     } catch {
-      // Beschädigtes Template überspringen, statt MCP-Tool zu crashen
+      // Skip corrupted templates rather than crashing the CLI.
     }
   }
   return templates;
@@ -102,7 +107,7 @@ export function listTemplates(): TemplateMetadata[] {
 export function deleteTemplate(id: string): void {
   const { dir } = getTemplatePaths(id);
   if (!fs.existsSync(dir)) {
-    throw new Error(`Template '${id}' nicht gefunden`);
+    throw new Error(`Template '${id}' not found`);
   }
   fs.rmSync(dir, { recursive: true, force: true });
 }

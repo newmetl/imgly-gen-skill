@@ -27,7 +27,7 @@ function requireLicense(): string {
   const license = process.env.CESDK_LICENSE;
   if (!license) {
     throw new Error(
-      'CESDK_LICENSE ist nicht gesetzt. Bitte in .env (oder ENV) den img.ly Lizenzschlüssel hinterlegen.',
+      'CESDK_LICENSE is not set. Add your img.ly license key to .env (or the environment).',
     );
   }
   return license;
@@ -35,7 +35,7 @@ function requireLicense(): string {
 
 export async function createBaseTemplate(config: BootstrapConfig): Promise<void> {
   if (config.variables.length === 0) {
-    throw new Error('Mindestens eine Variable muss angegeben werden.');
+    throw new Error('At least one variable must be provided.');
   }
 
   const license = requireLicense();
@@ -52,10 +52,10 @@ export async function createBaseTemplate(config: BootstrapConfig): Promise<void>
 
     const [page] = engine.block.findByType('page');
     if (page == null) {
-      throw new Error('Konnte Page-Block nach scene.create nicht finden.');
+      throw new Error('Could not find page block after scene.create.');
     }
 
-    // --- Bild-Platzhalter (oben, ~60% der Höhe) ---
+    // --- Image placeholder (top, ~60% of height) ---
     const imageBlock = engine.block.create('graphic');
     engine.block.setShape(imageBlock, engine.block.createShape('rect'));
     const imageFill = engine.block.createFill('image');
@@ -73,7 +73,7 @@ export async function createBaseTemplate(config: BootstrapConfig): Promise<void>
     engine.block.setPlaceholderControlsButtonEnabled(imageBlock, true);
     engine.block.appendChild(page, imageBlock);
 
-    // --- Text-Blöcke je Variable ---
+    // --- Text blocks per variable ---
     const textAreaTop = imageHeight + PADDING;
     const textAreaHeight = height - textAreaTop - PADDING;
     const blockHeight = Math.max(
@@ -109,14 +109,14 @@ export async function createBaseTemplate(config: BootstrapConfig): Promise<void>
       engine.variable.setString(varName, `[${varName}]`);
     });
 
-    // --- Constraints: Layout sperren, Bildtausch erlauben ---
+    // --- Constraints: lock layout, allow image swap ---
     engine.editor.setGlobalScope('layer/move', 'Defer');
     engine.editor.setGlobalScope('layer/resize', 'Defer');
     engine.block.setScopeEnabled(imageBlock, 'layer/move', false);
     engine.block.setScopeEnabled(imageBlock, 'layer/resize', false);
     engine.block.setScopeEnabled(imageBlock, 'fill/change', true);
 
-    // --- Archiv speichern ---
+    // --- Save archive ---
     const archive = await engine.scene.saveToArchive();
     const buffer = Buffer.from(await archive.arrayBuffer());
     saveTemplateArchive(config.templateId, buffer);

@@ -35,7 +35,7 @@ function buildUrl(args: GenerateArgs): string {
 
 export async function runGenerate(args: GenerateArgs): Promise<void> {
   if (!args.prompt.trim()) {
-    throw new Error('Prompt darf nicht leer sein.');
+    throw new Error('Prompt must not be empty.');
   }
 
   const outputPath = resolveOutputPath(args.prompt, args.output);
@@ -44,12 +44,12 @@ export async function runGenerate(args: GenerateArgs): Promise<void> {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(
-      `Pollinations.ai antwortete mit HTTP ${response.status} ${response.statusText}.`,
+      `Pollinations.ai responded with HTTP ${response.status} ${response.statusText}.`,
     );
   }
   const buffer = Buffer.from(await response.arrayBuffer());
   if (buffer.length === 0) {
-    throw new Error('Pollinations.ai lieferte einen leeren Body.');
+    throw new Error('Pollinations.ai returned an empty body.');
   }
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });

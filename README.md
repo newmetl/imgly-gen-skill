@@ -35,13 +35,13 @@ Claude will then run the steps below. You then:
 
 1. open the wizard URL Claude prints (e.g. `http://localhost:3458/set-license`),
 2. paste your CE.SDK license key,
-3. click **Speichern & validieren** — the wizard checks the key against `api.img.ly`
+3. click **Save & validate** — the wizard checks the key against `api.img.ly`
    and writes it into the local `.env`,
-4. tell Claude "fertig".
+4. tell Claude "done".
 
 After that, Claude is ready to operate the skill and will typically ask:
-*"Skill ist installiert. Womit möchtest du anfangen — soll ich dir ein
-Beispiel-Template anlegen, oder hast du schon ein Konzept?"*
+*"Skill is installed. Where would you like to start — should I create an
+example template, or do you already have a concept in mind?"*
 
 > **Note:** the skill is currently installed locally (only available when Claude is
 > started from the cloned directory). Global install is planned.
@@ -72,8 +72,9 @@ each step; do not ask permission for each one.
    ```bash
    npm run build
    ```
-   Verify both `<target-dir>/dist/cli/index.js` and
-   `<target-dir>/editor-app/dist/index.html` exist before proceeding.
+   The `build` script runs a verification step at the end and exits non-zero
+   if either `<target-dir>/dist/cli/index.js` or
+   `<target-dir>/editor-app/dist/index.html` is missing.
 5. **Start the license wizard as a background process** (Bash tool with
    `run_in_background: true`):
    ```bash
@@ -81,24 +82,28 @@ each step; do not ask permission for each one.
    ```
    Read the printed URL from the background output (format
    `http://localhost:<port>/set-license`).
-   - If the wizard prints `Lizenz ist bereits in .env gesetzt. Wizard wird
-     übersprungen.` and exits, skip to step 7.
+   - If the wizard prints `License is already set in .env. Skipping wizard.`
+     and exits, skip to step 7.
 6. **Hand off to the user, verbatim:**
-   > "Skill braucht eine gültige CE.SDK-Lizenz. Öffne `<wizard-url>` im
-   > Browser und trage deinen License Key ein. Trial-Key gibt es auf
-   > https://img.ly/dashboard. Sag Bescheid, wenn du fertig bist."
+   > "The skill needs a valid CE.SDK license. Open `<wizard-url>` in your
+   > browser and enter your license key. You can get a free trial key at
+   > https://img.ly/dashboard. Let me know once you've saved it."
 
-   Wait for the user's "fertig"/"done". The wizard process exits on its own
-   after a successful save — you don't need to kill it.
+   Wait for the user's "done" (or equivalent in any language). The wizard
+   process exits on its own after a successful save — you don't need to
+   kill it.
 7. **Load the skill knowledge** by reading
    `<target-dir>/.claude/skills/cesdk-social/SKILL.md`. From this point use
    absolute paths to invoke the CLI:
    `node <target-dir>/dist/cli/index.js <command> …`
+   The CLI resolves `.env`, the templates directory, and the editor build
+   relative to its own location, so the cwd does not matter — invoke from
+   anywhere.
 8. **Confirm and offer the first concrete next step** (do not just dump
    docs). Example:
-   > "Skill ist installiert. Womit möchtest du anfangen — soll ich dir ein
-   > Beispiel-Template anlegen, oder hast du schon ein Konzept für ein
-   > Template, das wir bauen sollen?"
+   > "The skill is installed. Where would you like to start — should I
+   > create an example template, or do you already have a concept for a
+   > template we should build?"
 
 **Do not** copy or symlink only the `SKILL.md` into the user's
 `~/.claude/skills/` directory. **Do not** attempt to install via `npx` or

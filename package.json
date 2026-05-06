@@ -1,7 +1,7 @@
 {
   "name": "cesdk-social-skill",
   "version": "0.2.0",
-  "description": "CLI + Claude-Skill für KI-gestützte Social-Media-Bildgenerierung mit CE.SDK",
+  "description": "CLI + Claude skill for AI-driven social media image generation with CE.SDK",
   "type": "module",
   "main": "dist/cli/index.js",
   "bin": {
@@ -9,9 +9,10 @@
   },
   "scripts": {
     "install:all": "npm install && npm --prefix editor-app install",
-    "build": "tsc && npm --prefix editor-app run build",
+    "build": "tsc && npm --prefix editor-app run build && node scripts/verify-build.mjs",
     "build:server": "tsc",
     "build:editor": "npm --prefix editor-app run build",
+    "verify": "node scripts/verify-build.mjs",
     "dev:editor": "npm --prefix editor-app run dev",
     "dev": "tsx src/cli/index.ts",
     "start": "node dist/cli/index.js",

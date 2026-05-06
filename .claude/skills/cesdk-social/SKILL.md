@@ -13,7 +13,9 @@ You always invoke the CLI via the **absolute path** to `dist/cli/index.js`:
 node <repo-root>/dist/cli/index.js <command> …
 ```
 
-Replace `<repo-root>` with the absolute path of the cloned repo (the directory containing this SKILL.md, three levels up from `.claude/skills/cesdk-social/`). Don't rely on `cesdk-social` being on the PATH — that's only true when the user has run `npm link` manually.
+Replace `<repo-root>` with the absolute path of the cloned repo (the directory containing this SKILL.md, three levels up from `.claude/skills/cesdk-social/`). The CLI resolves `.env`, the templates directory, and the editor build relative to its own location, so **the cwd does not matter** — you can invoke it from anywhere. Don't rely on `cesdk-social` being on the PATH; that's only true when the user has run `npm link` manually.
+
+All CLI output and error messages are in English. Reply to the user in whichever language they write to you, but keep the literal CLI strings (commands, flags, status lines) verbatim.
 
 ---
 
@@ -27,7 +29,7 @@ The CE.SDK license key lives in `.env`. It is sensitive.
 - Run `env`, `printenv`, `echo $CESDK_LICENSE` or similar.
 - Pass the key value as an argument to any tool.
 
-**You may:** check whether `.env` exists (`ls .env`), and run the `wizard` command (it writes the file via a browser form; it does not show the value to you).
+**You may:** check whether `.env` exists (`ls .env`) and run the `wizard` command (it writes the file via a browser form; it does not show the value to you).
 
 **Never set the key yourself** by writing to `.env` directly. Always use the wizard.
 
@@ -42,8 +44,10 @@ Before any other `cesdk-social` command, run this check in order:
 Do `dist/cli/index.js` AND `editor-app/dist/index.html` exist? If not:
 
 ```bash
-npm run install:all && npm run build
+npm --prefix <repo-root> run install:all && npm --prefix <repo-root> run build
 ```
+
+The `build` script verifies both artifacts and exits non-zero if anything is missing.
 
 ### 2. License present?
 
@@ -55,15 +59,15 @@ node <repo-root>/dist/cli/index.js wizard
 
 **Run the wizard as a background process** (Bash tool with `run_in_background: true`).
 
-If the license is already set, the wizard prints `Lizenz ist bereits in .env gesetzt. Wizard wird übersprungen.` and exits. You can proceed.
+If the license is already set, the wizard prints `License is already set in .env. Skipping wizard.` and exits. You can proceed.
 
 If the license is missing, the wizard prints a URL like `http://localhost:3458/set-license` and stays running. Read the URL from the output and tell the user **verbatim**:
 
-> "Skill braucht eine gültige CE.SDK-Lizenz. Öffne [http://localhost:3458/set-license](http://localhost:3458/set-license) im Browser und trage deinen License Key ein. Trial-Key gibt es auf https://img.ly/dashboard. Sag Bescheid, sobald du gespeichert hast."
+> "The skill needs a valid CE.SDK license. Open [http://localhost:3458/set-license](http://localhost:3458/set-license) in your browser and enter your license key. You can get a free trial key at https://img.ly/dashboard. Let me know once you've saved it."
 
-Wait for the user's "fertig" / "done". Once they confirm, the wizard background process has already exited on its own (it terminates after a successful save). You can then proceed.
+Wait for the user's "done" (or equivalent in any language). Once they confirm, the wizard background process has already exited on its own (it terminates after a successful save). You can then proceed.
 
-If the user reports an error in the wizard ("Validierung fehlgeschlagen"), the key is wrong — ask them to retry on the same wizard page; it remains open until a valid key is saved.
+If the user reports an error in the wizard ("Validation failed"), the key is wrong — ask them to retry on the same wizard page; it remains open until a valid key is saved.
 
 ---
 
@@ -108,7 +112,7 @@ node <repo-root>/dist/cli/index.js render <id> \
   --vars '{"headline":"…","postText":"…"}'
 ```
 
-The absolute path to the generated PNG is printed to stdout (one line, nothing else). Default output directory: `output/<id>_<timestamp>.png`. Overridable with `--output <path>`.
+The absolute path to the generated PNG is printed to stdout (one line, nothing else). Default output directory: `<repo-root>/output/<id>_<timestamp>.png`. Overridable with `--output <path>`.
 
 For multiple posts: just call `render` multiple times — each call produces its own PNG with a timestamp.
 
@@ -121,7 +125,7 @@ node <repo-root>/dist/cli/index.js generate "<prompt>" \
   [--width 1024] [--height 1024] [--seed <n>] [--model <name>] [--output <path>]
 ```
 
-Default 1024×1024, output under `output/generated/<slug>_<timestamp>.png`. stdout contains only the absolute path — pipe directly into `render`:
+Default 1024×1024, output under `<repo-root>/output/generated/<slug>_<timestamp>.png`. stdout contains only the absolute path — pipe directly into `render`:
 
 ```bash
 IMG=$(node <repo-root>/dist/cli/index.js generate "warm cocoa cinnamon autumn mood" --width 1080 --height 1080)
@@ -164,7 +168,7 @@ node <repo-root>/dist/cli/index.js render autumn-campaign \
 
 | Error | Cause | Reaction |
 |---|---|---|
-| `CESDK_LICENSE ist nicht gesetzt` | License missing in `.env` | Run the wizard. **Don't read `.env` yourself.** |
+| `CESDK_LICENSE is not set` | License missing in `.env` | Run the wizard. **Don't read `.env` yourself.** |
 | `Editor app is not built yet` | `editor-app/dist/` missing | Run `npm run build:editor` |
 | `Template '…' not found` | Wrong ID | `node <root>/dist/cli/index.js list` to correct |
 | Port 3456 in use | Another process holds the port | Start with `editor --port <other>` |

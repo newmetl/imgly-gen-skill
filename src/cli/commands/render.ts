@@ -12,7 +12,7 @@ export interface RenderArgs {
 
 function parseVariables(args: RenderArgs): Record<string, string> {
   if (args.vars && args.varsFile) {
-    throw new Error('Bitte nur eines von --vars oder --vars-file angeben.');
+    throw new Error('Provide only one of --vars or --vars-file.');
   }
   let raw: string;
   let source: string;
@@ -23,7 +23,7 @@ function parseVariables(args: RenderArgs): Record<string, string> {
     raw = fs.readFileSync(args.varsFile, 'utf-8');
     source = `--vars-file ${args.varsFile}`;
   } else {
-    throw new Error('Entweder --vars <json> oder --vars-file <pfad> angeben.');
+    throw new Error('Provide either --vars <json> or --vars-file <path>.');
   }
 
   let parsed: unknown;
@@ -31,16 +31,16 @@ function parseVariables(args: RenderArgs): Record<string, string> {
     parsed = JSON.parse(raw);
   } catch (err) {
     throw new Error(
-      `Konnte ${source} nicht als JSON parsen: ${err instanceof Error ? err.message : String(err)}`,
+      `Could not parse ${source} as JSON: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error(`${source} muss ein JSON-Objekt sein, z. B. {"headline":"…"}.`);
+    throw new Error(`${source} must be a JSON object, e.g. {"headline":"…"}.`);
   }
   const result: Record<string, string> = {};
   for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
     if (typeof value !== 'string') {
-      throw new Error(`Wert für '${key}' in ${source} ist kein String.`);
+      throw new Error(`Value for '${key}' in ${source} is not a string.`);
     }
     result[key] = value;
   }
