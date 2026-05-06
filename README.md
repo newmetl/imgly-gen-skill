@@ -68,6 +68,16 @@ each step; do not ask permission for each one.
    ```bash
    cd <target-dir> && npm run install:all
    ```
+   `tsc`, `tsx`, and Vite live in `devDependencies`, so the install must
+   include them. If your environment defaults to production installs (e.g.
+   `NODE_ENV=production`, sandboxes like OpenClaw, or any `--omit=dev` /
+   `--production` flag), force dev deps in:
+   ```bash
+   NODE_ENV=development npm install --include=dev
+   NODE_ENV=development npm --prefix editor-app install --include=dev
+   ```
+   Symptom if this is wrong: step 4 fails with `tsc: not found` or falls
+   back to a globally installed (and likely wrong-major) TypeScript.
 4. **Build CLI + editor:**
    ```bash
    npm run build
