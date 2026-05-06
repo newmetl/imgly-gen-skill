@@ -147,7 +147,16 @@ export async function startEditorServer(port?: number): Promise<string> {
       serverInstance = server;
       resolve();
     });
-    server.once('error', (err) => {
+    server.once('error', (err: NodeJS.ErrnoException) => {
+      if (err.code === 'EADDRINUSE') {
+        reject(
+          new Error(
+            `Port ${actualPort} is already in use (another editor or unrelated process is bound to it). ` +
+              `Retry with a different port: --port <other> (or set EDITOR_PORT in .env).`,
+          ),
+        );
+        return;
+      }
       reject(err);
     });
   });
