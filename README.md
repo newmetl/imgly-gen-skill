@@ -259,7 +259,8 @@ cesdk-social-skill/
 │   │   └── commands/
 │   ├── engine/
 │   │   ├── bootstrap.ts      # create base template via @cesdk/node
-│   │   └── renderer.ts       # load template → fill → PNG export
+│   │   ├── renderer.ts       # load template → fill → PNG export
+│   │   └── thumbnail.ts      # render preview PNG for the editor library
 │   ├── editor/
 │   │   └── server.ts         # local Express server for editor UI + ZIP API
 │   ├── setup/
