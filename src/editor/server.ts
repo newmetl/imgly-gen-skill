@@ -7,6 +7,7 @@ import express, { type Request, type Response } from 'express';
 import { EDITOR_DIST_DIR } from '../paths.js';
 import {
   getTemplatePaths,
+  listTemplates,
   templateExists,
   updateMetadata,
 } from '../storage/templateManager.js';
@@ -35,6 +36,15 @@ function buildApp(): express.Express {
     const raw = req.params.id;
     return Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? '');
   };
+
+  app.get('/api/templates', (_req: Request, res: Response) => {
+    const templates = listTemplates().map((t) => ({
+      id: t.id,
+      name: t.name,
+      platform: t.platform,
+    }));
+    res.json(templates);
+  });
 
   app.get('/api/template/:id', (req: Request, res: Response) => {
     const id = idOf(req);

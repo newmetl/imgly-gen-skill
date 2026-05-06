@@ -6,7 +6,35 @@ import {
 } from '@cesdk/cesdk-js/plugins';
 
 interface Props {
-  templateId: string;
+  templateId: string | null;
+}
+
+interface TemplateListEntry {
+  id: string;
+  name: string;
+  platform: string;
+}
+
+const TEMPLATE_SOURCE_ID = 'cesdk-social.templates';
+const TEMPLATE_LIBRARY_ENTRY_ID = 'cesdk-social.templates.entry';
+
+async function loadTemplateIntoScene(
+  engine: CreativeEditorSDK['engine'],
+  templateId: string,
+): Promise<void> {
+  const res = await fetch(`/api/template/${encodeURIComponent(templateId)}`);
+  if (!res.ok) {
+    throw new Error(
+      `Template '${templateId}' konnte nicht geladen werden (HTTP ${res.status}).`,
+    );
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  try {
+    await engine.scene.loadFromArchiveURL(url);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 type Status =
@@ -19,7 +47,23 @@ type Status =
 export function CesdkEditor({ templateId }: Props): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const cesdkRef = useRef<CreativeEditorSDK | null>(null);
+  const currentTemplateIdRef = useRef<string | null>(templateId);
+  const [currentTemplateId, setCurrentTemplateId] = useState<string | null>(
+    templateId,
+  );
   const [status, setStatus] = useState<Status>({ kind: 'loading' });
+
+  // Beide Halter (State + Ref) synchron halten: State triggert Re-Renders
+  // (Save-Button), Ref ist die stabile Quelle für async-Callbacks.
+  const updateCurrentTemplateId = (next: string): void => {
+    currentTemplateIdRef.current = next;
+    setCurrentTemplateId(next);
+    window.history.replaceState(
+      {},
+      '',
+      `?template=${encodeURIComponent(next)}`,
+    );
+  };
 
   useEffect(() => {
     const container = containerRef.current;
@@ -68,6 +112,8 @@ export function CesdkEditor({ templateId }: Props): JSX.Element {
           'ly.img.text.alignment',
           'ly.img.fill',
           'ly.img.fill.color',
+          'ly.img.dock',
+          'ly.img.library.panel',
         ]);
         instance.ui.setComponentOrder({ in: 'ly.img.inspector.bar' }, [
           'ly.img.text.typeFace.inspectorBar',
@@ -80,20 +126,72 @@ export function CesdkEditor({ templateId }: Props): JSX.Element {
           'ly.img.fill.inspectorBar',
         ]);
 
-        const res = await fetch(
-          `/api/template/${encodeURIComponent(templateId)}`,
+        // Template-Library im Dock: Source + Library-Entry + Dock-Button.
+        // Beim Klick auf einen Eintrag lädt applyAsset die Scene; der React-
+        // State-Ref wird auf die neue ID umgestellt, damit "Speichern" ins
+        // richtige Template schreibt.
+        engine.asset.addLocalSource(
+          TEMPLATE_SOURCE_ID,
+          [],
+          async (asset) => {
+            await loadTemplateIntoScene(engine, asset.id);
+            updateCurrentTemplateId(asset.id);
+            setStatus({ kind: 'ready' });
+            return undefined;
+          },
         );
-        if (!res.ok) {
-          throw new Error(
-            `Template '${templateId}' konnte nicht geladen werden (HTTP ${res.status}).`,
-          );
+
+        const listRes = await fetch('/api/templates');
+        if (listRes.ok) {
+          const templates = (await listRes.json()) as TemplateListEntry[];
+          // CE.SDK behandelt relative URIs als Asset-Pfade und prependet die
+          // CDN-BaseURL. Absolute URLs nutzen, damit Thumbs vom eigenen Server
+          // geladen werden statt von cdn.img.ly.
+          const origin = window.location.origin;
+          for (const t of templates) {
+            engine.asset.addAssetToSource(TEMPLATE_SOURCE_ID, {
+              id: t.id,
+              label: { en: t.name, de: t.name },
+              meta: {
+                uri: `${origin}/api/template/${encodeURIComponent(t.id)}`,
+                thumbUri: `${origin}/thumbs/${t.platform}.svg`,
+              },
+            });
+          }
         }
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        try {
-          await engine.scene.loadFromArchiveURL(url);
-        } finally {
-          URL.revokeObjectURL(url);
+
+        instance.ui.addAssetLibraryEntry({
+          id: TEMPLATE_LIBRARY_ENTRY_ID,
+          sourceIds: [TEMPLATE_SOURCE_ID],
+          gridColumns: 2,
+        });
+
+        instance.ui.insertOrderComponent(
+          { in: 'ly.img.dock', position: 'start' },
+          {
+            id: 'ly.img.assetLibrary.dock',
+            key: 'cesdk-social-templates',
+            label: 'Templates',
+            icon: '@imgly/Template',
+            entries: [TEMPLATE_LIBRARY_ENTRY_ID],
+          },
+        );
+
+        if (templateId) {
+          await loadTemplateIntoScene(engine, templateId);
+          updateCurrentTemplateId(templateId);
+        } else {
+          // Kein Template in der URL: leere Scene anlegen (sonst rendert CE.SDK
+          // gar nichts) und Library-Panel direkt öffnen, damit der Nutzer ohne
+          // Umweg eine Vorlage auswählen kann. Größe ist nur ein Platzhalter —
+          // sie wird beim ersten applyAsset durch die Template-Scene ersetzt.
+          engine.scene.create('Free', {
+            page: { size: { width: 1080, height: 1080 } },
+          });
+          engine.scene.setDesignUnit('Pixel');
+          instance.ui.openPanel('//ly.img.panel/assetLibrary', {
+            payload: { entries: [TEMPLATE_LIBRARY_ENTRY_ID] },
+          });
         }
 
         setStatus({ kind: 'ready' });
@@ -116,12 +214,14 @@ export function CesdkEditor({ templateId }: Props): JSX.Element {
   const onSave = async (): Promise<void> => {
     const instance = cesdkRef.current;
     if (!instance) return;
+    const id = currentTemplateIdRef.current;
+    if (!id) return;
     setStatus({ kind: 'saving' });
     try {
       const archive = await instance.engine.scene.saveToArchive();
       const buffer = await archive.arrayBuffer();
       const res = await fetch(
-        `/api/template/${encodeURIComponent(templateId)}`,
+        `/api/template/${encodeURIComponent(id)}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/zip' },
@@ -151,25 +251,34 @@ export function CesdkEditor({ templateId }: Props): JSX.Element {
       }}
     >
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
-      <SaveBar status={status} onSave={() => void onSave()} />
+      <SaveBar
+        status={status}
+        hasSelection={currentTemplateId !== null}
+        onSave={() => void onSave()}
+      />
     </div>
   );
 }
 
 function SaveBar({
   status,
+  hasSelection,
   onSave,
 }: {
   status: Status;
+  hasSelection: boolean;
   onSave: () => void;
 }): JSX.Element {
-  const disabled = status.kind === 'loading' || status.kind === 'saving';
+  const disabled =
+    status.kind === 'loading' || status.kind === 'saving' || !hasSelection;
   const label =
     status.kind === 'saving'
       ? 'Speichere ...'
       : status.kind === 'loading'
         ? 'Lade ...'
-        : 'Template speichern';
+        : !hasSelection
+          ? 'Kein Template ausgewählt'
+          : 'Template speichern';
 
   return (
     <div
