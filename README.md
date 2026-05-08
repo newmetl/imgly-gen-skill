@@ -1,4 +1,4 @@
-# cesdk-social-skill
+# imgly-gen-skill
 
 CLI + Claude Code skill for generating social media images with
 [CE.SDK](https://img.ly/products/creative-sdk) by img.ly.
